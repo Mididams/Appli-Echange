@@ -898,9 +898,6 @@ function explainValidationResult(result) {
   if (reasonCodes.includes(REASON_CODES.INSUFFICIENT_REST_HOURS)) {
     messages.push("Le repos minimum de 12 heures entre deux postes consécutifs n'est pas respecté.");
   }
-  if (reasonCodes.includes(REASON_CODES.SHIFT_SEQUENCE_NOT_ALLOWED)) {
-    messages.push("Au moins une succession jour/nuit ou nuit/jour est incompatible.");
-  }
   if (reasonCodes.includes(REASON_CODES.UNKNOWN_SHIFT_TYPE)) {
     messages.push("Au moins un type de poste est inconnu.");
   }

@@ -21,9 +21,9 @@
   };
   const EXCHANGE_SHIFT_TYPES = ["JOUR_7_19", "NUIT_19_7", "JOUR_10_22", "JOUR_11_23"];
   const EXCHANGE_MODE_LABELS = {
-    ANY: "Jour ou nuit",
-    DAY: "Jour uniquement",
-    NIGHT: "Nuit uniquement",
+    ANY: "Jour\u00A0ou\u00A0nuit",
+    DAY: "Jour\u00A0uniquement",
+    NIGHT: "Nuit\u00A0uniquement",
   };
   const ROLLING_LIMIT_REASON_CODE = "TOO_MANY_WORKED_DAYS_IN_7";
   const MONTH_FORMATTER = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" });
@@ -107,6 +107,15 @@
 
   function addDays(dateString, days) {
     return engine.addDays(dateString, days);
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   function getMonthDateStrings(year, monthIndex) {
@@ -868,44 +877,36 @@
     dayDetailsTitle.textContent = `Détails du ${formatDisplayDate(date)}`;
 
     const shift = getShiftByDate(date);
-    const lines = [`Date : ${formatDisplayDate(date)}`];
+    const lines = [`<strong>Date : ${escapeHtml(formatDisplayDate(date))}</strong>`];
 
     if (isAnnualLeaveShift(shift)) {
-      lines.push("Congé annuel : oui");
-      lines.push("Jour travaillé : non");
+      lines.push(`Congé annuel : ${escapeHtml("oui")}`);
     } else if (shift) {
-      lines.push(`Jour travaillé : oui`);
-      lines.push(`Horaire : ${SHIFT_TYPE_LABELS[shift.shiftType]}`);
-    } else {
-      lines.push(`Jour travaillé : non`);
+      lines.push(`Horaire : ${escapeHtml(SHIFT_TYPE_LABELS[shift.shiftType])}`);
     }
-
-    lines.push(`Repos bloqué : ${state.blockedRestDates.includes(date) ? "oui" : "non"}`);
-    lines.push(`Jour à enlever : ${state.removedShift && state.removedShift.date === date ? "oui" : "non"}`);
 
     if (!state.removedShift) {
       lines.push("");
-      lines.push("Sélectionne d'abord un jour à enlever pour calculer les disponibilités.");
-      dayDetailsOutput.textContent = lines.join("\n");
+      lines.push(escapeHtml("Sélectionne d'abord un jour à enlever pour calculer les disponibilités."));
+      dayDetailsOutput.innerHTML = lines.join("\n");
       return;
     }
 
     const availabilityEntry = state.visibleStatuses ? state.visibleStatuses[date] : null;
     const availability = availabilityEntry ? availabilityEntry.availability : null;
     lines.push("");
-    lines.push(`Mode actif : ${EXCHANGE_MODE_LABELS[state.exchangeMode]}`);
-    lines.push(`Disponibilité calculée : ${availabilityEntry ? availabilityEntry.status : "NONE"}`);
+    lines.push(`Mode actif : ${escapeHtml(EXCHANGE_MODE_LABELS[state.exchangeMode])}`);
 
     if (availability) {
       lines.push(
-        `Horaires jour autorisés : ${
+        `Horaires jour autorisés : ${escapeHtml(
           availability.allowedDayShiftTypes.map((shiftType) => SHIFT_TYPE_LABELS[shiftType] || shiftType).join(", ") || "aucun"
-        }`
+        )}`
       );
       lines.push(
-        `Horaires nuit autorisés : ${
+        `Horaires nuit autorisés : ${escapeHtml(
           availability.allowedNightShiftTypes.map((shiftType) => SHIFT_TYPE_LABELS[shiftType] || shiftType).join(", ") || "aucun"
-        }`
+        )}`
       );
     }
 
@@ -917,26 +918,30 @@
       }
 
       lines.push("");
-      lines.push(`${getDayDetailsShiftLabel(shiftType, result)} : ${result.allowed ? "possible" : "impossible"}`);
-      lines.push(`Explication : ${engine.explainValidationResult(result)}`);
+      const statusLabel = result.allowed ? "possible" : "impossible";
+      const statusClass = result.allowed ? "detail-status-possible" : "detail-status-impossible";
+      lines.push(
+        `<strong>${escapeHtml(getDayDetailsShiftLabel(shiftType, result))} : <span class="${statusClass}">${escapeHtml(statusLabel)}</span></strong>`
+      );
+      lines.push(`<strong>Explication</strong> : ${escapeHtml(engine.explainValidationResult(result))}`);
 
       if (result.rollingRule && Array.isArray(result.rollingRule.blockingWindows) && result.rollingRule.blockingWindows.length > 0) {
         result.rollingRule.blockingWindows.forEach((window) => {
           lines.push(
-            `Période bloquante : ${formatDisplayDate(window.startDate)} -> ${formatDisplayDate(window.endDate)} (${window.workedDaysCount} jours travaillés)`
+            `Période bloquante : ${escapeHtml(formatDisplayDate(window.startDate))} -> ${escapeHtml(formatDisplayDate(window.endDate))} (${escapeHtml(window.workedDaysCount)} jours travaillés)`
           );
         });
       }
 
       if (state.debugMode) {
-        lines.push(`Debug - reasonCodes : ${result.reasonCodes.join(", ") || "NONE"}`);
-        lines.push(`Debug - rolling : ${formatJson(result.rollingRule)}`);
-        lines.push(`Debug - repos : ${formatJson(result.restRule)}`);
-        lines.push(`Debug - compatibilité : ${formatJson(result.compatibilityRule)}`);
+        lines.push(`Debug - reasonCodes : ${escapeHtml(result.reasonCodes.join(", ") || "NONE")}`);
+        lines.push(`Debug - rolling : ${escapeHtml(formatJson(result.rollingRule))}`);
+        lines.push(`Debug - repos : ${escapeHtml(formatJson(result.restRule))}`);
+        lines.push(`Debug - compatibilité : ${escapeHtml(formatJson(result.compatibilityRule))}`);
       }
     });
 
-    dayDetailsOutput.textContent = lines.join("\n");
+    dayDetailsOutput.innerHTML = lines.join("\n");
   }
 
   function saveToLocalStorage() {

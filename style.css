@@ -14,6 +14,8 @@
   --color-blocked-rest: #f5c0ca;
   --color-selected: #232323;
   --color-button: #ffffff;
+  --color-possible-text: #2f7d32;
+  --color-impossible-text: #b42318;
   --shadow-soft: 0 8px 24px rgba(35, 48, 56, 0.08);
 }
 
@@ -337,6 +339,13 @@ select:hover {
 .summary-line,
 .legend-line {
   display: flex;
+}
+
+.summary-line {
+  display: block;
+}
+
+.legend-line {
   gap: 8px;
   align-items: center;
 }
@@ -364,6 +373,14 @@ pre {
   white-space: pre-wrap;
   line-height: 1.45;
   font-size: 13px;
+}
+
+.detail-status-possible {
+  color: var(--color-possible-text);
+}
+
+.detail-status-impossible {
+  color: var(--color-impossible-text);
 }
 
 .modal-backdrop {
@@ -459,6 +476,12 @@ pre {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  flex: 0 0 auto;
+  margin: 0;
 }
 
 .modal-actions {
