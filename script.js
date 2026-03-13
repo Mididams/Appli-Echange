@@ -1,0 +1,1276 @@
+(function initExchangeApp() {
+  const engine = window.shiftExchangeEngine;
+  if (!engine) {
+    throw new Error("Le moteur shiftExchangeEngine n'est pas disponible.");
+  }
+
+  const STORAGE_KEY = "hospital-shift-exchange-v1";
+  const SHIFT_TYPE_LABELS = {
+    JOUR_7_19: "7h-19h",
+    NUIT_19_7: "19h-7h",
+    JOUR_10_22: "10h-22h",
+    JOUR_11_23: "11h-23h",
+    CA: "CA",
+  };
+  const SHIFT_TYPE_BADGES = {
+    JOUR_7_19: "J7-19",
+    NUIT_19_7: "N19-7",
+    JOUR_10_22: "J10-22",
+    JOUR_11_23: "J11-23",
+    CA: "CA",
+  };
+  const EXCHANGE_SHIFT_TYPES = ["JOUR_7_19", "NUIT_19_7", "JOUR_10_22", "JOUR_11_23"];
+  const EXCHANGE_MODE_LABELS = {
+    ANY: "Jour ou nuit",
+    DAY: "Jour uniquement",
+    NIGHT: "Nuit uniquement",
+  };
+  const ROLLING_LIMIT_REASON_CODE = "TOO_MANY_WORKED_DAYS_IN_7";
+  const MONTH_FORMATTER = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" });
+  const REQUEST_DATE_FORMATTER = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+
+  const state = {
+    schedule: [],
+    removedShift: null,
+    exchangeMode: "ANY",
+    blockedRestDates: [],
+    visibleMonthStart: getMonthStart(new Date()),
+    selectedDate: null,
+    selectedDateStatus: null,
+    debugMode: false,
+    pickerDate: null,
+    lastSelectedShiftType: "JOUR_7_19",
+  };
+
+  const calendarContainer = document.getElementById("calendar-container");
+  const summaryContent = document.getElementById("summary-content");
+  const legendContent = document.getElementById("legend-content");
+  const dayDetailsTitle = document.getElementById("day-details-title");
+  const dayDetailsOutput = document.getElementById("day-details-output");
+  const statusBanner = document.getElementById("status-banner");
+  const prevMonthButton = document.getElementById("prev-month-button");
+  const nextMonthButton = document.getElementById("next-month-button");
+  const requestExchangeButton = document.getElementById("request-exchange-button");
+  const clearRemovedButton = document.getElementById("clear-removed-button");
+  const settingsButton = document.getElementById("settings-button");
+  const settingsPanel = document.getElementById("settings-panel");
+  const toggleDebugButton = document.getElementById("toggle-debug-button");
+  const resetButton = document.getElementById("reset-button");
+  const exportButton = document.getElementById("export-button");
+  const importButton = document.getElementById("import-button");
+  const importFileInput = document.getElementById("import-file-input");
+  const shiftPickerBackdrop = document.getElementById("shift-picker-backdrop");
+  const shiftPickerTitle = document.getElementById("shift-picker-title");
+  const shiftPickerDateLabel = document.getElementById("shift-picker-date-label");
+  const shiftPickerHelp = document.getElementById("shift-picker-help");
+  const shiftTypeSelect = document.getElementById("shift-type-select");
+  const blockedRestCheckbox = document.getElementById("blocked-rest-checkbox");
+  const saveShiftButton = document.getElementById("save-shift-button");
+  const deleteShiftButton = document.getElementById("delete-shift-button");
+  const selectRemovedButton = document.getElementById("select-removed-button");
+  const closePickerButton = document.getElementById("close-picker-button");
+  const detailsEditButton = document.getElementById("details-edit-button");
+  const detailsRemoveButton = document.getElementById("details-remove-button");
+  const detailsSelectRemovedButton = document.getElementById("details-select-removed-button");
+  const detailsToggleBlockedButton = document.getElementById("details-toggle-blocked-button");
+  const exchangeModeInputs = document.querySelectorAll("input[name='exchange-mode']");
+  const requestModalBackdrop = document.getElementById("request-modal-backdrop");
+  const requestStartDateInput = document.getElementById("request-start-date-input");
+  const requestEndDateInput = document.getElementById("request-end-date-input");
+  const requestTextOutput = document.getElementById("request-text-output");
+  const copyRequestButton = document.getElementById("copy-request-button");
+  const closeRequestButton = document.getElementById("close-request-button");
+  const requestRangeButtons = document.querySelectorAll(".request-range-button");
+  const include1022Checkbox = document.getElementById("include-10-22-checkbox");
+  const include1123Checkbox = document.getElementById("include-11-23-checkbox");
+
+  function getMonthStart(date) {
+    return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+  }
+
+  function setSettingsPanelOpen(isOpen) {
+    settingsPanel.classList.toggle("hidden", !isOpen);
+    settingsButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  }
+
+  function formatDateString(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(
+      2,
+      "0"
+    )}`;
+  }
+
+  function parseDateString(dateString) {
+    return engine.parseLocalDate(dateString);
+  }
+
+  function addDays(dateString, days) {
+    return engine.addDays(dateString, days);
+  }
+
+  function getMonthDateStrings(year, monthIndex) {
+    const firstDay = new Date(year, monthIndex, 1);
+    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+    const dates = [];
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      dates.push(formatDateString(new Date(year, monthIndex, day)));
+    }
+    return dates;
+  }
+
+  function getMondayFirstIndex(date) {
+    return (date.getDay() + 6) % 7;
+  }
+
+  function compareShifts(left, right) {
+    return engine.sortSchedule([left, right])[0] === left ? -1 : 1;
+  }
+
+  function getShiftByDate(dateString) {
+    return state.schedule.find((shift) => shift.date === dateString) || null;
+  }
+
+  function isAnnualLeaveShift(shift) {
+    return Boolean(shift && shift.shiftType === "CA");
+  }
+
+  function isRegularWorkedShift(shift) {
+    return Boolean(shift && shift.shiftType !== "CA");
+  }
+
+  function setSchedule(nextSchedule) {
+    state.schedule = engine.sortSchedule(nextSchedule);
+  }
+
+  function removeBlockedRestDate(dateString) {
+    state.blockedRestDates = state.blockedRestDates.filter((date) => date !== dateString);
+  }
+
+  function saveWorkedShift(date, shiftType) {
+    const nextSchedule = state.schedule.filter((shift) => shift.date !== date);
+    nextSchedule.push({ date, shiftType });
+    setSchedule(nextSchedule);
+    removeBlockedRestDate(date);
+    state.lastSelectedShiftType = shiftType;
+
+    if (state.removedShift && state.removedShift.date === date) {
+      state.removedShift = { date, shiftType };
+    }
+
+    saveToLocalStorage();
+    computeVisibleCandidateStatuses();
+    renderAll();
+  }
+
+  function removeWorkedShift(date) {
+    const existingShift = getShiftByDate(date);
+    if (!existingShift) {
+      return;
+    }
+
+    setSchedule(state.schedule.filter((shift) => shift.date !== date));
+
+    if (state.removedShift && state.removedShift.date === date) {
+      state.removedShift = null;
+    }
+
+    saveToLocalStorage();
+    computeVisibleCandidateStatuses();
+    renderAll();
+  }
+
+  function toggleBlockedRest(dateString, shouldBlock) {
+    state.blockedRestDates = shouldBlock
+      ? [...new Set([...state.blockedRestDates, dateString])].sort()
+      : state.blockedRestDates.filter((date) => date !== dateString);
+
+    if (shouldBlock) {
+      removeWorkedShift(dateString);
+    }
+
+    saveToLocalStorage();
+    computeVisibleCandidateStatuses();
+    renderAll();
+  }
+
+  function selectRemovedShift(date) {
+    const shift = getShiftByDate(date);
+    if (!shift) {
+      return;
+    }
+
+    state.removedShift = { ...shift };
+    state.selectedDate = date;
+    saveToLocalStorage();
+    computeVisibleCandidateStatuses();
+    renderAll();
+  }
+
+  function clearRemovedShift() {
+    state.removedShift = null;
+    saveToLocalStorage();
+    computeVisibleCandidateStatuses();
+    renderAll();
+  }
+
+  function setExchangeMode(mode) {
+    state.exchangeMode = mode;
+    saveToLocalStorage();
+    computeVisibleCandidateStatuses();
+    renderAll();
+  }
+
+  function getModeAdjustedStatus(availability) {
+    if (!availability) {
+      return "NONE";
+    }
+
+    if (state.exchangeMode === "DAY") {
+      return availability.dayAllowed ? "DAY_ONLY" : "NONE";
+    }
+
+    if (state.exchangeMode === "NIGHT") {
+      return availability.nightAllowed ? "NIGHT_ONLY" : "NONE";
+    }
+
+    return availability.availabilityType;
+  }
+
+  function getVisibleMonthRange() {
+    const firstMonth = getMonthStart(state.visibleMonthStart);
+    const secondMonth = getMonthStart(new Date(firstMonth.getFullYear(), firstMonth.getMonth() + 1, 1));
+    return [firstMonth, secondMonth];
+  }
+
+  function getVisibleDateStrings() {
+    return getVisibleMonthRange().flatMap((monthStart) => {
+      return getMonthDateStrings(monthStart.getFullYear(), monthStart.getMonth());
+    });
+  }
+
+  function computeVisibleCandidateStatuses() {
+    const statuses = {};
+    const options = { blockedRestDates: state.blockedRestDates };
+
+    getVisibleDateStrings().forEach((dateString) => {
+      if (!state.removedShift) {
+        statuses[dateString] = {
+          status: "NONE",
+          availability: null,
+          resultByShiftType: {},
+        };
+        return;
+      }
+
+      const availability = engine.getCandidateAvailabilityType(state.schedule, state.removedShift, dateString, options);
+      const resultByShiftType = {};
+
+      EXCHANGE_SHIFT_TYPES.forEach((shiftType) => {
+        const candidateShift = { date: dateString, shiftType };
+        resultByShiftType[shiftType] = engine.isExchangeAllowed(state.schedule, state.removedShift, candidateShift, options);
+      });
+
+      statuses[dateString] = {
+        status: getModeAdjustedStatus(availability),
+        availability,
+        resultByShiftType,
+      };
+    });
+
+    state.visibleStatuses = statuses;
+    return statuses;
+  }
+
+  function getDayCellState(date) {
+    const shift = getShiftByDate(date);
+    const isRemoved = Boolean(state.removedShift && state.removedShift.date === date);
+    const isBlockedRest = state.blockedRestDates.includes(date);
+    const availabilityData = state.visibleStatuses ? state.visibleStatuses[date] : null;
+    const availabilityStatus = availabilityData ? availabilityData.status : "NONE";
+
+    if (isRemoved) {
+      return "removed";
+    }
+    if (isAnnualLeaveShift(shift)) {
+      return "blocked-rest";
+    }
+    if (shift) {
+      return "worked";
+    }
+    if (isBlockedRest) {
+      return "blocked-rest";
+    }
+    if (!state.removedShift) {
+      return "empty";
+    }
+    if (availabilityStatus === "DAY_ONLY") {
+      return "day-only";
+    }
+    if (availabilityStatus === "NIGHT_ONLY") {
+      return "night-only";
+    }
+    if (availabilityStatus === "BOTH") {
+      return "both";
+    }
+    return "none";
+  }
+
+  function getDayCellBadges(date) {
+    const badges = [];
+    const shift = getShiftByDate(date);
+    if (shift) {
+      badges.push(SHIFT_TYPE_BADGES[shift.shiftType] || shift.shiftType);
+    }
+    if (state.removedShift && state.removedShift.date === date) {
+      badges.push("À retirer");
+    }
+    if (state.blockedRestDates.includes(date)) {
+      badges.push("Repos bloqué");
+    }
+    return badges;
+  }
+
+  function formatDayCellBadgeLabel(label) {
+    if (label.includes(":")) {
+      return label.replace(":", "\n");
+    }
+
+    if (label.includes(" ")) {
+      const parts = label.split(" ");
+      return `${parts.slice(0, -1).join(" ")}\n${parts[parts.length - 1]}`;
+    }
+
+    return label;
+  }
+
+  function shouldHideDetailedShiftResult(shiftType, result) {
+    if (!result || result.allowed) {
+      return false;
+    }
+
+    if (!["JOUR_10_22", "JOUR_11_23"].includes(shiftType)) {
+      return false;
+    }
+
+    return Array.isArray(result.reasonCodes) && result.reasonCodes.includes(ROLLING_LIMIT_REASON_CODE);
+  }
+
+  function getDayDetailsShiftLabel(shiftType, result) {
+    const hasRollingLimitReason =
+      result && Array.isArray(result.reasonCodes) && result.reasonCodes.includes(ROLLING_LIMIT_REASON_CODE);
+
+    if (hasRollingLimitReason) {
+      if (shiftType === "JOUR_7_19") {
+        return "Jour";
+      }
+      if (shiftType === "NUIT_19_7") {
+        return "Nuit";
+      }
+    }
+
+    return SHIFT_TYPE_LABELS[shiftType] || shiftType;
+  }
+
+  function getMiniSummaryItems(date) {
+    const statusEntry = state.visibleStatuses ? state.visibleStatuses[date] : null;
+    if (!state.removedShift || !statusEntry || getShiftByDate(date) || state.blockedRestDates.includes(date)) {
+      return [];
+    }
+
+    return EXCHANGE_SHIFT_TYPES.map((shiftType) => {
+      const result = statusEntry.resultByShiftType[shiftType];
+      return {
+        label: SHIFT_TYPE_BADGES[shiftType] || shiftType,
+        allowed: result ? result.allowed : false,
+      };
+    });
+  }
+
+  function renderMonth(year, month) {
+    const monthCard = document.createElement("section");
+    monthCard.className = "month-card";
+
+    const monthHeader = document.createElement("div");
+    monthHeader.className = "month-header";
+
+    const title = document.createElement("h2");
+    title.className = "month-title";
+    title.textContent = MONTH_FORMATTER.format(new Date(year, month, 1));
+    monthHeader.appendChild(title);
+    monthCard.appendChild(monthHeader);
+
+    const monthGrid = document.createElement("div");
+    monthGrid.className = "month-grid";
+
+    WEEKDAY_LABELS.forEach((label) => {
+      const weekday = document.createElement("div");
+      weekday.className = "weekday";
+      weekday.textContent = label;
+      monthGrid.appendChild(weekday);
+    });
+
+    const firstDay = new Date(year, month, 1);
+    const offset = getMondayFirstIndex(firstDay);
+    for (let index = 0; index < offset; index += 1) {
+      const emptyCell = document.createElement("div");
+      emptyCell.className = "day-cell empty";
+      monthGrid.appendChild(emptyCell);
+    }
+
+    getMonthDateStrings(year, month).forEach((dateString) => {
+      const button = document.createElement("button");
+      const cellState = getDayCellState(dateString);
+      button.type = "button";
+      button.className = `day-cell state-${cellState}`;
+      if (state.selectedDate === dateString) {
+        button.classList.add("selected-detail");
+      }
+
+      const number = document.createElement("div");
+      number.className = "day-number";
+      number.textContent = String(parseDateString(dateString).getDate());
+      button.appendChild(number);
+
+      const badgeContainer = document.createElement("div");
+      badgeContainer.className = "day-badges";
+      getDayCellBadges(dateString).forEach((badgeLabel) => {
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        badge.textContent = formatDayCellBadgeLabel(badgeLabel);
+        badgeContainer.appendChild(badge);
+      });
+      button.appendChild(badgeContainer);
+
+      const miniSummary = getMiniSummaryItems(dateString);
+      if (miniSummary.length > 0) {
+        const summaryContainer = document.createElement("div");
+        summaryContainer.className = "day-mini-summary";
+        miniSummary.forEach((item) => {
+          const badge = document.createElement("span");
+          badge.className = `badge ${state.debugMode ? "debug" : ""}`;
+          badge.textContent = formatDayCellBadgeLabel(`${item.label}:${item.allowed ? "OK" : "NON"}`);
+          summaryContainer.appendChild(badge);
+        });
+        button.appendChild(summaryContainer);
+      }
+
+      button.addEventListener("click", () => handleDayClick(dateString));
+      button.addEventListener("dblclick", () => handleDayDoubleClick(dateString));
+      monthGrid.appendChild(button);
+    });
+
+    monthCard.appendChild(monthGrid);
+    return monthCard;
+  }
+
+  function renderCalendar(startMonth) {
+    calendarContainer.innerHTML = "";
+    const monthStart = startMonth ? getMonthStart(startMonth) : getMonthStart(state.visibleMonthStart);
+    const secondMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1);
+    calendarContainer.appendChild(renderMonth(monthStart.getFullYear(), monthStart.getMonth()));
+    calendarContainer.appendChild(renderMonth(secondMonth.getFullYear(), secondMonth.getMonth()));
+  }
+
+  function openShiftTypePicker(date) {
+    state.pickerDate = date;
+    state.selectedDate = date;
+
+    const existingShift = getShiftByDate(date);
+    const isBlockedRest = state.blockedRestDates.includes(date);
+
+    shiftPickerTitle.textContent = existingShift ? "Modifier le jour" : "Ajouter un jour";
+    shiftPickerDateLabel.textContent = formatDisplayDate(date);
+    shiftPickerHelp.textContent = existingShift
+      ? "Tu peux modifier l'horaire ou supprimer cette saisie."
+      : "Choisis un horaire pour marquer ce jour comme travaillé, ou coche le repos bloqué si tu ne veux pas travailler ce jour.";
+    shiftTypeSelect.value = existingShift ? existingShift.shiftType : state.lastSelectedShiftType;
+    blockedRestCheckbox.checked = isBlockedRest;
+    shiftTypeSelect.disabled = isBlockedRest;
+    deleteShiftButton.disabled = !existingShift;
+    selectRemovedButton.disabled = !isRegularWorkedShift(existingShift);
+    shiftPickerBackdrop.classList.remove("hidden");
+
+    renderDayDetails(date);
+  }
+
+  function closeShiftTypePicker() {
+    shiftPickerBackdrop.classList.add("hidden");
+    state.pickerDate = null;
+  }
+
+  function handleDayClick(date) {
+    state.selectedDate = date;
+    renderDayDetails(date);
+    renderAll();
+  }
+
+  function handleDayDoubleClick(date) {
+    state.selectedDate = date;
+    openShiftTypePicker(date);
+    renderAll();
+  }
+
+  function getVisiblePossibleDayCount() {
+    if (!state.removedShift || !state.visibleStatuses) {
+      return 0;
+    }
+
+    return getVisibleDateStrings().filter((date) => {
+      if (getShiftByDate(date) || date === state.removedShift.date || state.blockedRestDates.includes(date)) {
+        return false;
+      }
+      const entry = state.visibleStatuses[date];
+      return entry && entry.status !== "NONE";
+    }).length;
+  }
+
+  function renderSummary() {
+    summaryContent.innerHTML = "";
+    const lines = [
+      ["Jours travaillés saisis", String(state.schedule.filter(isRegularWorkedShift).length)],
+      [
+        "Jour à enlever",
+        state.removedShift ? `${formatDisplayDate(state.removedShift.date)} - ${SHIFT_TYPE_LABELS[state.removedShift.shiftType]}` : "Aucun",
+      ],
+      ["Mode de recherche", EXCHANGE_MODE_LABELS[state.exchangeMode]],
+      ["Jours possibles visibles", String(getVisiblePossibleDayCount())],
+      ["Repos bloqués", String(state.blockedRestDates.length)],
+      ["Congés annuels", String(state.schedule.filter(isAnnualLeaveShift).length)],
+    ];
+
+    const list = document.createElement("div");
+    list.className = "summary-list";
+    lines.forEach(([label, value]) => {
+      const line = document.createElement("div");
+      line.className = "summary-line";
+      line.innerHTML = `<strong>${label} :</strong> <span>${value}</span>`;
+      list.appendChild(line);
+    });
+    summaryContent.appendChild(list);
+  }
+
+  function renderStatusBanner() {
+    if (!state.selectedDate) {
+      statusBanner.textContent = "Sélectionne un jour pour voir son état et les actions disponibles.";
+      return;
+    }
+
+    const shift = getShiftByDate(state.selectedDate);
+    const isBlocked = state.blockedRestDates.includes(state.selectedDate);
+    const formattedSelectedDate = formatDisplayDate(state.selectedDate);
+
+    if (isAnnualLeaveShift(shift)) {
+      statusBanner.textContent = `Jour sélectionné : ${formattedSelectedDate}. Ce jour est saisi comme congé annuel.`;
+      return;
+    }
+
+    if (shift) {
+      statusBanner.textContent = `Jour sélectionné : ${formattedSelectedDate}. Utilise les actions à droite pour modifier ce poste, le supprimer ou le choisir comme jour à enlever.`;
+      return;
+    }
+
+    if (isBlocked) {
+      statusBanner.textContent = `Jour sélectionné : ${formattedSelectedDate}. Ce jour est bloqué comme repos indisponible. Tu peux le débloquer depuis le panneau de détails.`;
+      return;
+    }
+
+    if (state.removedShift) {
+      statusBanner.textContent = `Jour sélectionné : ${formattedSelectedDate}. Cette date est analysée comme candidate d'échange. Double-clique si tu veux finalement y saisir un poste.`;
+      return;
+    }
+
+    statusBanner.textContent = `Jour sélectionné : ${formattedSelectedDate}. Utilise "Ajouter / modifier" ou double-clique pour saisir un poste travaillé.`;
+  }
+
+  function renderDetailsActions() {
+    const date = state.selectedDate;
+    const shift = date ? getShiftByDate(date) : null;
+    const isBlocked = date ? state.blockedRestDates.includes(date) : false;
+    const isAnnualLeave = isAnnualLeaveShift(shift);
+
+    detailsEditButton.disabled = !date;
+    detailsRemoveButton.disabled = !shift;
+    detailsSelectRemovedButton.disabled = !isRegularWorkedShift(shift);
+    detailsToggleBlockedButton.disabled = !date || isAnnualLeave;
+    detailsToggleBlockedButton.textContent = isBlocked ? "Débloquer le repos" : "Bloquer en repos";
+  }
+
+  function renderLegend() {
+    legendContent.innerHTML = "";
+    const items = [
+      ["var(--color-worked)", "Jour travaillé"],
+      ["var(--color-removed)", "Jour à enlever"],
+      ["var(--color-day-only)", "Possible en jour"],
+      ["var(--color-night-only)", "Possible en nuit"],
+      ["var(--color-both)", "Possible en jour ou en nuit"],
+      ["var(--color-none)", "Impossible"],
+      ["var(--color-blocked-rest)", "Repos bloqué"],
+      ["var(--color-blocked-rest)", "Congé annuel (CA)"],
+    ];
+
+    const list = document.createElement("div");
+    list.className = "legend-list";
+    items.forEach(([color, label]) => {
+      const row = document.createElement("div");
+      row.className = "legend-line";
+      const swatchClass = label === "Jour travaillé" ? "legend-swatch legend-swatch-worked" : "legend-swatch";
+      row.innerHTML = `<span class="${swatchClass}" style="background:${color}"></span><span>${label}</span>`;
+      list.appendChild(row);
+    });
+    legendContent.appendChild(list);
+  }
+
+  function formatJson(value) {
+    return JSON.stringify(value, null, 2);
+  }
+
+  function formatDisplayDate(dateString) {
+    const date = parseDateString(dateString);
+    return `${String(date.getDate()).padStart(2, "0")}-${String(date.getMonth() + 1).padStart(2, "0")}-${date.getFullYear()}`;
+  }
+
+  function formatRequestDate(dateString) {
+    return REQUEST_DATE_FORMATTER.format(parseDateString(dateString));
+  }
+
+  function formatRequestShiftLabel(shiftType) {
+    if (shiftType === "JOUR_7_19") {
+      return "jour";
+    }
+
+    if (shiftType === "NUIT_19_7") {
+      return "nuit";
+    }
+
+    return SHIFT_TYPE_LABELS[shiftType] || shiftType;
+  }
+
+  function getAllowedShiftTypesForEntry(statusEntry) {
+    if (!statusEntry || !statusEntry.availability) {
+      return [];
+    }
+
+    if (state.exchangeMode === "DAY") {
+      return statusEntry.availability.allowedDayShiftTypes;
+    }
+
+    if (state.exchangeMode === "NIGHT") {
+      return statusEntry.availability.allowedNightShiftTypes;
+    }
+
+    return [...statusEntry.availability.allowedDayShiftTypes, ...statusEntry.availability.allowedNightShiftTypes];
+  }
+
+  function filterRequestShiftTypes(shiftTypes) {
+    return shiftTypes.filter((shiftType) => {
+      if (shiftType === "JOUR_10_22") {
+        return include1022Checkbox.checked;
+      }
+
+      if (shiftType === "JOUR_11_23") {
+        return include1123Checkbox.checked;
+      }
+
+      return true;
+    });
+  }
+
+  function getExchangeRequestCandidates() {
+    if (!state.removedShift || !state.visibleStatuses) {
+      return [];
+    }
+
+    return getVisibleDateStrings()
+      .filter((date) => !getShiftByDate(date) && date !== state.removedShift.date && !state.blockedRestDates.includes(date))
+      .map((date) => {
+        const statusEntry = state.visibleStatuses[date];
+        const allowedShiftTypes = [...new Set(filterRequestShiftTypes(getAllowedShiftTypesForEntry(statusEntry)))];
+        return {
+          date,
+          allowedShiftTypes,
+        };
+      })
+      .filter((entry) => entry.allowedShiftTypes.length > 0);
+  }
+
+  function getExchangeRequestCandidatesInRange(startDate, endDate) {
+    return getExchangeRequestCandidates().filter((candidate) => {
+      if (startDate && candidate.date < startDate) {
+        return false;
+      }
+      if (endDate && candidate.date > endDate) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  function buildExchangeRequestText(startDate, endDate) {
+    if (!state.removedShift) {
+      return "";
+    }
+
+    const candidates = getExchangeRequestCandidatesInRange(startDate, endDate);
+    if (candidates.length === 0) {
+      return "";
+    }
+
+    const candidateText = candidates
+      .map((candidate) => {
+        const formattedShifts = candidate.allowedShiftTypes.map((shiftType) => formatRequestShiftLabel(shiftType));
+        if (formattedShifts.length === 1) {
+          return `${formatRequestDate(candidate.date)} ${formattedShifts[0]}`;
+        }
+
+        return `${formatRequestDate(candidate.date)} (${formattedShifts.join(", ")})`;
+      })
+      .join(", ");
+
+    return `Bonjour, je souhaite échanger le ${formatRequestDate(state.removedShift.date)} contre : ${candidateText}.`;
+  }
+
+  function canOpenExchangeRequest() {
+    return Boolean(state.removedShift) && getExchangeRequestCandidates().length > 0;
+  }
+
+  function getRequestRangeValues() {
+    return {
+      startDate: requestStartDateInput.value || "",
+      endDate: requestEndDateInput.value || "",
+    };
+  }
+
+  function setActiveRequestRangeButton(activeButton) {
+    requestRangeButtons.forEach((button) => {
+      button.classList.toggle("is-active", button === activeButton);
+    });
+  }
+
+  function clearActiveRequestRangeButtons() {
+    setActiveRequestRangeButton(null);
+  }
+
+  function clampDateString(dateString, minDate, maxDate) {
+    if (!dateString) {
+      return minDate;
+    }
+    if (dateString < minDate) {
+      return minDate;
+    }
+    if (dateString > maxDate) {
+      return maxDate;
+    }
+    return dateString;
+  }
+
+  function addMonths(dateString, monthCount) {
+    const date = parseDateString(dateString);
+    date.setMonth(date.getMonth() + monthCount);
+    return formatDateString(date);
+  }
+
+  function getDefaultRequestRange(candidates) {
+    const minDate = candidates[0].date;
+    const maxDate = candidates[candidates.length - 1].date;
+    const removedDate = state.removedShift ? state.removedShift.date : minDate;
+
+    return {
+      startDate: clampDateString(addDays(removedDate, -5), minDate, maxDate),
+      endDate: clampDateString(addDays(removedDate, 5), minDate, maxDate),
+    };
+  }
+
+  function applyRequestRange(days, useMonth, activeButton) {
+    const minDate = requestStartDateInput.min;
+    const maxDate = requestEndDateInput.max;
+    const startDate = clampDateString(requestStartDateInput.value || minDate, minDate, maxDate);
+    const rawEndDate = useMonth ? addDays(addMonths(startDate, 1), -1) : addDays(startDate, days - 1);
+    const endDate = clampDateString(rawEndDate, minDate, maxDate);
+
+    requestStartDateInput.value = startDate;
+    requestEndDateInput.value = endDate;
+    setActiveRequestRangeButton(activeButton);
+    refreshRequestText();
+  }
+
+  function refreshRequestText() {
+    const { startDate, endDate } = getRequestRangeValues();
+
+    if (startDate && endDate && startDate > endDate) {
+      requestTextOutput.value = "La date de fin doit être postérieure ou égale à la date de début.";
+      copyRequestButton.disabled = true;
+      return;
+    }
+
+    const text = buildExchangeRequestText(startDate, endDate);
+    requestTextOutput.value =
+      text || "Aucun créneau possible dans cette plage de dates. Modifie les dates pour élargir la recherche.";
+    copyRequestButton.disabled = !text;
+  }
+
+  function openRequestModal() {
+    if (!canOpenExchangeRequest()) {
+      return;
+    }
+
+    const candidates = getExchangeRequestCandidates();
+    requestStartDateInput.min = candidates[0].date;
+    requestStartDateInput.max = candidates[candidates.length - 1].date;
+    requestEndDateInput.min = candidates[0].date;
+    requestEndDateInput.max = candidates[candidates.length - 1].date;
+    include1022Checkbox.checked = false;
+    include1123Checkbox.checked = false;
+    const defaultRange = getDefaultRequestRange(candidates);
+    requestStartDateInput.value = defaultRange.startDate;
+    requestEndDateInput.value = defaultRange.endDate;
+    clearActiveRequestRangeButtons();
+    refreshRequestText();
+    requestModalBackdrop.classList.remove("hidden");
+  }
+
+  function closeRequestModal() {
+    requestModalBackdrop.classList.add("hidden");
+  }
+
+  async function copyRequestText() {
+    const text = requestTextOutput.value;
+    if (!text) {
+      return;
+    }
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        requestTextOutput.focus();
+        requestTextOutput.select();
+        document.execCommand("copy");
+      }
+      copyRequestButton.textContent = "Texte copié";
+      window.setTimeout(() => {
+        copyRequestButton.textContent = "Copier le texte";
+      }, 1600);
+    } catch (error) {
+      window.alert("Copie impossible automatiquement. Le texte est déjà sélectionné, tu peux faire Ctrl+C.");
+      requestTextOutput.focus();
+      requestTextOutput.select();
+    }
+  }
+
+  function renderDayDetails(date) {
+    if (!date) {
+      dayDetailsTitle.textContent = "Détails du jour";
+      dayDetailsOutput.textContent = "Clique sur un jour pour afficher ses détails.";
+      return;
+    }
+
+    dayDetailsTitle.textContent = `Détails du ${formatDisplayDate(date)}`;
+
+    const shift = getShiftByDate(date);
+    const lines = [`Date : ${formatDisplayDate(date)}`];
+
+    if (isAnnualLeaveShift(shift)) {
+      lines.push("Congé annuel : oui");
+      lines.push("Jour travaillé : non");
+    } else if (shift) {
+      lines.push(`Jour travaillé : oui`);
+      lines.push(`Horaire : ${SHIFT_TYPE_LABELS[shift.shiftType]}`);
+    } else {
+      lines.push(`Jour travaillé : non`);
+    }
+
+    lines.push(`Repos bloqué : ${state.blockedRestDates.includes(date) ? "oui" : "non"}`);
+    lines.push(`Jour à enlever : ${state.removedShift && state.removedShift.date === date ? "oui" : "non"}`);
+
+    if (!state.removedShift) {
+      lines.push("");
+      lines.push("Sélectionne d'abord un jour à enlever pour calculer les disponibilités.");
+      dayDetailsOutput.textContent = lines.join("\n");
+      return;
+    }
+
+    const availabilityEntry = state.visibleStatuses ? state.visibleStatuses[date] : null;
+    const availability = availabilityEntry ? availabilityEntry.availability : null;
+    lines.push("");
+    lines.push(`Mode actif : ${EXCHANGE_MODE_LABELS[state.exchangeMode]}`);
+    lines.push(`Disponibilité calculée : ${availabilityEntry ? availabilityEntry.status : "NONE"}`);
+
+    if (availability) {
+      lines.push(
+        `Horaires jour autorisés : ${
+          availability.allowedDayShiftTypes.map((shiftType) => SHIFT_TYPE_LABELS[shiftType] || shiftType).join(", ") || "aucun"
+        }`
+      );
+      lines.push(
+        `Horaires nuit autorisés : ${
+          availability.allowedNightShiftTypes.map((shiftType) => SHIFT_TYPE_LABELS[shiftType] || shiftType).join(", ") || "aucun"
+        }`
+      );
+    }
+
+    const resultsForDate = availabilityEntry ? availabilityEntry.resultByShiftType : {};
+    EXCHANGE_SHIFT_TYPES.forEach((shiftType) => {
+      const result = resultsForDate[shiftType];
+      if (!result || shouldHideDetailedShiftResult(shiftType, result)) {
+        return;
+      }
+
+      lines.push("");
+      lines.push(`${getDayDetailsShiftLabel(shiftType, result)} : ${result.allowed ? "possible" : "impossible"}`);
+      lines.push(`Explication : ${engine.explainValidationResult(result)}`);
+
+      if (result.rollingRule && Array.isArray(result.rollingRule.blockingWindows) && result.rollingRule.blockingWindows.length > 0) {
+        result.rollingRule.blockingWindows.forEach((window) => {
+          lines.push(
+            `Période bloquante : ${formatDisplayDate(window.startDate)} -> ${formatDisplayDate(window.endDate)} (${window.workedDaysCount} jours travaillés)`
+          );
+        });
+      }
+
+      if (state.debugMode) {
+        lines.push(`Debug - reasonCodes : ${result.reasonCodes.join(", ") || "NONE"}`);
+        lines.push(`Debug - rolling : ${formatJson(result.rollingRule)}`);
+        lines.push(`Debug - repos : ${formatJson(result.restRule)}`);
+        lines.push(`Debug - compatibilité : ${formatJson(result.compatibilityRule)}`);
+      }
+    });
+
+    dayDetailsOutput.textContent = lines.join("\n");
+  }
+
+  function saveToLocalStorage() {
+    const payload = {
+      schedule: state.schedule,
+      removedShift: state.removedShift,
+      exchangeMode: state.exchangeMode,
+      blockedRestDates: state.blockedRestDates,
+      visibleMonthStart: formatDateString(state.visibleMonthStart),
+      selectedDate: state.selectedDate,
+      debugMode: state.debugMode,
+      lastSelectedShiftType: state.lastSelectedShiftType,
+    };
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }
+
+  function loadFromLocalStorage() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      state.schedule = Array.isArray(parsed.schedule) ? engine.sortSchedule(parsed.schedule) : [];
+      state.removedShift = parsed.removedShift || null;
+      state.exchangeMode = parsed.exchangeMode || "ANY";
+      state.blockedRestDates = Array.isArray(parsed.blockedRestDates) ? parsed.blockedRestDates : [];
+      state.visibleMonthStart = parsed.visibleMonthStart ? parseDateString(parsed.visibleMonthStart) : getMonthStart(new Date());
+      state.selectedDate = parsed.selectedDate || null;
+      state.debugMode = Boolean(parsed.debugMode);
+      state.lastSelectedShiftType =
+        typeof parsed.lastSelectedShiftType === "string" && SHIFT_TYPE_LABELS[parsed.lastSelectedShiftType]
+          ? parsed.lastSelectedShiftType
+          : "JOUR_7_19";
+    } catch (error) {
+      console.error("Impossible de charger le localStorage :", error);
+    }
+  }
+
+  function exportData() {
+    const payload = {
+      version: 1,
+      schedule: state.schedule,
+      removedShift: state.removedShift,
+      exchangeMode: state.exchangeMode,
+      blockedRestDates: state.blockedRestDates,
+      visibleMonthStart: formatDateString(state.visibleMonthStart),
+      debugMode: state.debugMode,
+      lastSelectedShiftType: state.lastSelectedShiftType,
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "echange-postes-export.json";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importData(payload) {
+    if (!payload || typeof payload !== "object") {
+      throw new Error("Fichier JSON invalide.");
+    }
+
+    state.schedule = Array.isArray(payload.schedule) ? engine.sortSchedule(payload.schedule) : [];
+    state.removedShift = payload.removedShift || null;
+    state.exchangeMode = payload.exchangeMode || "ANY";
+    state.blockedRestDates = Array.isArray(payload.blockedRestDates) ? payload.blockedRestDates : [];
+    state.visibleMonthStart = payload.visibleMonthStart ? parseDateString(payload.visibleMonthStart) : getMonthStart(new Date());
+    state.selectedDate = null;
+    state.debugMode = Boolean(payload.debugMode);
+    state.lastSelectedShiftType =
+      typeof payload.lastSelectedShiftType === "string" && SHIFT_TYPE_LABELS[payload.lastSelectedShiftType]
+        ? payload.lastSelectedShiftType
+        : "JOUR_7_19";
+
+    saveToLocalStorage();
+    computeVisibleCandidateStatuses();
+    renderAll();
+  }
+
+  function resetApplication() {
+    state.schedule = [];
+    state.removedShift = null;
+    state.exchangeMode = "ANY";
+    state.blockedRestDates = [];
+    state.selectedDate = null;
+    state.debugMode = false;
+    state.lastSelectedShiftType = "JOUR_7_19";
+    state.visibleMonthStart = getMonthStart(new Date());
+    closeShiftTypePicker();
+    saveToLocalStorage();
+    computeVisibleCandidateStatuses();
+    renderAll();
+  }
+
+  function renderAll() {
+    exchangeModeInputs.forEach((input) => {
+      input.checked = input.value === state.exchangeMode;
+    });
+    toggleDebugButton.textContent = `Mode debug : ${state.debugMode ? "ON" : "OFF"}`;
+    computeVisibleCandidateStatuses();
+    requestExchangeButton.disabled = !canOpenExchangeRequest();
+    renderCalendar(state.visibleMonthStart);
+    renderSummary();
+    renderLegend();
+    renderStatusBanner();
+    renderDetailsActions();
+    renderDayDetails(state.selectedDate);
+  }
+
+  function populateShiftTypeSelect() {
+    shiftTypeSelect.innerHTML = "";
+    Object.keys(SHIFT_TYPE_LABELS).forEach((shiftType) => {
+      const option = document.createElement("option");
+      option.value = shiftType;
+      option.textContent = SHIFT_TYPE_LABELS[shiftType];
+      shiftTypeSelect.appendChild(option);
+    });
+  }
+
+  prevMonthButton.addEventListener("click", () => {
+    state.visibleMonthStart = new Date(
+      state.visibleMonthStart.getFullYear(),
+      state.visibleMonthStart.getMonth() - 1,
+      1
+    );
+    saveToLocalStorage();
+    renderAll();
+  });
+
+  nextMonthButton.addEventListener("click", () => {
+    state.visibleMonthStart = new Date(
+      state.visibleMonthStart.getFullYear(),
+      state.visibleMonthStart.getMonth() + 1,
+      1
+    );
+    saveToLocalStorage();
+    renderAll();
+  });
+
+  requestExchangeButton.addEventListener("click", openRequestModal);
+  clearRemovedButton.addEventListener("click", clearRemovedShift);
+
+  settingsButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setSettingsPanelOpen(settingsPanel.classList.contains("hidden"));
+  });
+
+  settingsPanel.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+
+  toggleDebugButton.addEventListener("click", () => {
+    state.debugMode = !state.debugMode;
+    setSettingsPanelOpen(false);
+    saveToLocalStorage();
+    renderAll();
+  });
+
+  resetButton.addEventListener("click", resetApplication);
+  exportButton.addEventListener("click", () => {
+    setSettingsPanelOpen(false);
+    exportData();
+  });
+
+  importButton.addEventListener("click", () => {
+    setSettingsPanelOpen(false);
+    importFileInput.click();
+  });
+  importFileInput.addEventListener("change", async (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      importData(JSON.parse(text));
+    } catch (error) {
+      window.alert(`Import impossible : ${error.message}`);
+    }
+    importFileInput.value = "";
+  });
+
+  exchangeModeInputs.forEach((input) => {
+    input.addEventListener("change", (event) => {
+      setExchangeMode(event.target.value);
+    });
+  });
+
+  saveShiftButton.addEventListener("click", () => {
+    if (!state.pickerDate) {
+      return;
+    }
+
+    if (blockedRestCheckbox.checked) {
+      toggleBlockedRest(state.pickerDate, true);
+      closeShiftTypePicker();
+      return;
+    }
+
+    saveWorkedShift(state.pickerDate, shiftTypeSelect.value);
+    closeShiftTypePicker();
+  });
+
+  deleteShiftButton.addEventListener("click", () => {
+    if (!state.pickerDate) {
+      return;
+    }
+    removeWorkedShift(state.pickerDate);
+    closeShiftTypePicker();
+  });
+
+  selectRemovedButton.addEventListener("click", () => {
+    if (!state.pickerDate) {
+      return;
+    }
+    selectRemovedShift(state.pickerDate);
+    closeShiftTypePicker();
+  });
+
+  blockedRestCheckbox.addEventListener("change", () => {
+    const checked = blockedRestCheckbox.checked;
+    shiftTypeSelect.disabled = checked;
+  });
+
+  closePickerButton.addEventListener("click", closeShiftTypePicker);
+  shiftPickerBackdrop.addEventListener("click", (event) => {
+    if (event.target === shiftPickerBackdrop) {
+      closeShiftTypePicker();
+    }
+  });
+
+  copyRequestButton.addEventListener("click", () => {
+    copyRequestText();
+  });
+
+  requestStartDateInput.addEventListener("change", refreshRequestText);
+  requestEndDateInput.addEventListener("change", refreshRequestText);
+  requestStartDateInput.addEventListener("change", clearActiveRequestRangeButtons);
+  requestEndDateInput.addEventListener("change", clearActiveRequestRangeButtons);
+  include1022Checkbox.addEventListener("change", refreshRequestText);
+  include1123Checkbox.addEventListener("change", refreshRequestText);
+  requestRangeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const days = Number(button.dataset.rangeDays);
+      const useMonth = button.dataset.rangeMonth === "true";
+      applyRequestRange(days, useMonth, button);
+    });
+  });
+
+  closeRequestButton.addEventListener("click", closeRequestModal);
+  requestModalBackdrop.addEventListener("click", (event) => {
+    if (event.target === requestModalBackdrop) {
+      closeRequestModal();
+    }
+  });
+
+  detailsEditButton.addEventListener("click", () => {
+    if (!state.selectedDate) {
+      return;
+    }
+    openShiftTypePicker(state.selectedDate);
+  });
+
+  detailsRemoveButton.addEventListener("click", () => {
+    if (!state.selectedDate) {
+      return;
+    }
+    removeWorkedShift(state.selectedDate);
+  });
+
+  detailsSelectRemovedButton.addEventListener("click", () => {
+    if (!state.selectedDate) {
+      return;
+    }
+    selectRemovedShift(state.selectedDate);
+  });
+
+  detailsToggleBlockedButton.addEventListener("click", () => {
+    if (!state.selectedDate) {
+      return;
+    }
+    const isBlocked = state.blockedRestDates.includes(state.selectedDate);
+    toggleBlockedRest(state.selectedDate, !isBlocked);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      if (!shiftPickerBackdrop.classList.contains("hidden")) {
+        closeShiftTypePicker();
+      }
+      if (!requestModalBackdrop.classList.contains("hidden")) {
+        closeRequestModal();
+      }
+      if (!settingsPanel.classList.contains("hidden")) {
+        setSettingsPanelOpen(false);
+      }
+    }
+  });
+
+  document.addEventListener("click", () => {
+    if (!settingsPanel.classList.contains("hidden")) {
+      setSettingsPanelOpen(false);
+    }
+  });
+
+  populateShiftTypeSelect();
+  loadFromLocalStorage();
+  computeVisibleCandidateStatuses();
+  renderAll();
+
+  window.exchangeApp = {
+    renderCalendar,
+    renderMonth,
+    getDayCellState,
+    handleDayClick,
+    openShiftTypePicker,
+    saveWorkedShift,
+    removeWorkedShift,
+    selectRemovedShift,
+    clearRemovedShift,
+    setExchangeMode,
+    computeVisibleCandidateStatuses,
+    renderDayDetails,
+    renderLegend,
+    renderSummary,
+    saveToLocalStorage,
+    loadFromLocalStorage,
+    exportData,
+    importData,
+  };
+})();

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Application d'échange de postes - V1</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="toolbar">
+        <div class="toolbar-group">
+          <button id="prev-month-button" type="button">Mois précédent</button>
+          <button id="next-month-button" type="button">Mois suivant</button>
+        </div>
+
+        <div class="toolbar-group toolbar-group-radio">
+          <span class="toolbar-label">Mode de recherche</span>
+          <label><input type="radio" name="exchange-mode" value="ANY" checked /> Jour ou nuit</label>
+          <label><input type="radio" name="exchange-mode" value="DAY" /> Jour uniquement</label>
+          <label><input type="radio" name="exchange-mode" value="NIGHT" /> Nuit uniquement</label>
+        </div>
+
+        <div class="toolbar-group">
+          <button id="clear-removed-button" type="button">Annuler le jour à enlever</button>
+          <button id="request-exchange-button" type="button" disabled>Demander</button>
+          <button id="reset-button" type="button">Réinitialiser</button>
+          <div class="settings-menu">
+            <button id="settings-button" type="button" aria-expanded="false" aria-controls="settings-panel">Paramètres</button>
+            <div id="settings-panel" class="settings-panel hidden">
+              <button id="toggle-debug-button" type="button">Mode debug : OFF</button>
+              <button id="export-button" type="button">Exporter JSON</button>
+              <button id="import-button" type="button">Importer JSON</button>
+            </div>
+          </div>
+          <input id="import-file-input" type="file" accept="application/json" hidden />
+        </div>
+      </header>
+
+      <main class="main-layout">
+        <section class="calendar-panel">
+          <div class="help-box">
+            <h1>Calendrier des échanges</h1>
+            <p>
+              1. Clique sur un jour pour le consulter. 2. Double-clique sur un jour pour l'éditer rapidement. 3. Utilise
+              les actions du panneau de droite pour ajouter, modifier, supprimer ou choisir le jour à enlever. 4. Les
+              disponibilités apparaissent automatiquement.
+            </p>
+          </div>
+
+          <div id="status-banner" class="status-banner">
+            Sélectionne un jour pour voir son état et les actions disponibles.
+          </div>
+
+          <div id="calendar-container" class="calendar-container"></div>
+        </section>
+
+        <aside class="side-panel">
+          <section class="panel-card">
+            <h2>Résumé</h2>
+            <div id="summary-content"></div>
+          </section>
+
+          <section class="panel-card">
+            <h2>Légende</h2>
+            <div id="legend-content"></div>
+          </section>
+
+          <section class="panel-card">
+            <h2 id="day-details-title">Détails du jour</h2>
+            <div id="details-actions" class="details-actions">
+              <button id="details-edit-button" type="button">Ajouter / modifier</button>
+              <button id="details-remove-button" type="button">Supprimer</button>
+              <button id="details-select-removed-button" type="button">Choisir comme jour à échanger</button>
+              <button id="details-toggle-blocked-button" type="button">Bloquer en repos</button>
+            </div>
+            <pre id="day-details-output">Clique sur un jour pour afficher ses détails.</pre>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <div id="shift-picker-backdrop" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <h2 id="shift-picker-title">Modifier le jour</h2>
+        <p id="shift-picker-date-label"></p>
+        <p id="shift-picker-help" class="modal-help"></p>
+
+        <div class="modal-section">
+          <label for="shift-type-select">Horaire</label>
+          <select id="shift-type-select"></select>
+        </div>
+
+        <div class="modal-section">
+          <label class="checkbox-label">
+            <input id="blocked-rest-checkbox" type="checkbox" />
+            Bloquer ce jour comme repos indisponible
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button id="save-shift-button" type="button">Enregistrer</button>
+          <button id="delete-shift-button" type="button">Supprimer le poste</button>
+          <button id="select-removed-button" type="button">Choisir comme jour à échanger</button>
+          <button id="close-picker-button" type="button">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="request-modal-backdrop" class="modal-backdrop hidden">
+      <div class="modal-card modal-card-wide">
+        <h2>Texte de demande d'échange</h2>
+        <p class="modal-help">Choisis la plage de dates à inclure, puis copie le message.</p>
+
+        <div class="modal-grid">
+          <div class="modal-section">
+            <label for="request-start-date-input">Date de début</label>
+            <input id="request-start-date-input" type="date" />
+          </div>
+
+          <div class="modal-section">
+            <label for="request-end-date-input">Date de fin</label>
+            <input id="request-end-date-input" type="date" />
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <span class="toolbar-label">Raccourcis</span>
+          <div class="request-shortcuts">
+            <button type="button" class="request-range-button" data-range-days="5">5 jours</button>
+            <button type="button" class="request-range-button" data-range-days="7">7 jours</button>
+            <button type="button" class="request-range-button" data-range-days="10">10 jours</button>
+            <button type="button" class="request-range-button" data-range-days="15">15 jours</button>
+            <button type="button" class="request-range-button" data-range-days="30" data-range-month="true">1 mois</button>
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <span class="toolbar-label">Horaires à inclure</span>
+          <div class="request-options">
+            <label class="checkbox-label">
+              <input id="include-10-22-checkbox" type="checkbox" />
+              10h-22h
+            </label>
+            <label class="checkbox-label">
+              <input id="include-11-23-checkbox" type="checkbox" />
+              11h-23h
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <label for="request-text-output">Texte à copier</label>
+          <textarea id="request-text-output" class="request-textarea" readonly></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button id="copy-request-button" type="button">Copier le texte</button>
+          <button id="close-request-button" type="button">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="./shiftExchangeEngine.js"></script>
+    <script src="./script.js"></script>
+  </body>
+</html>
