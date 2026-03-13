@@ -10,6 +10,7 @@
     NUIT_19_7: "19h-7h",
     JOUR_10_22: "10h-22h",
     JOUR_11_23: "11h-23h",
+    FO: "FO",
     CA: "CA",
   };
   const SHIFT_TYPE_BADGES = {
@@ -17,6 +18,7 @@
     NUIT_19_7: "N19-7",
     JOUR_10_22: "J10-22",
     JOUR_11_23: "J11-23",
+    FO: "FO",
     CA: "CA",
   };
   const EXCHANGE_SHIFT_TYPES = ["JOUR_7_19", "NUIT_19_7", "JOUR_10_22", "JOUR_11_23"];
@@ -144,8 +146,20 @@
     return Boolean(shift && shift.shiftType === "CA");
   }
 
+  function isTrainingShift(shift) {
+    return Boolean(shift && shift.shiftType === "FO");
+  }
+
   function isRegularWorkedShift(shift) {
     return Boolean(shift && shift.shiftType !== "CA");
+  }
+
+  function isExchangeableWorkedShift(shift) {
+    return Boolean(shift && shift.shiftType !== "CA" && shift.shiftType !== "FO");
+  }
+
+  function getPreferredPickerShiftType() {
+    return state.lastSelectedShiftType === "FO" ? "JOUR_7_19" : state.lastSelectedShiftType;
   }
 
   function setSchedule(nextSchedule) {
@@ -161,10 +175,10 @@
     nextSchedule.push({ date, shiftType });
     setSchedule(nextSchedule);
     removeBlockedRestDate(date);
-    state.lastSelectedShiftType = shiftType;
+    state.lastSelectedShiftType = shiftType === "FO" ? "JOUR_7_19" : shiftType;
 
     if (state.removedShift && state.removedShift.date === date) {
-      state.removedShift = { date, shiftType };
+      state.removedShift = isExchangeableWorkedShift({ date, shiftType }) ? { date, shiftType } : null;
     }
 
     saveToLocalStorage();
@@ -205,7 +219,7 @@
 
   function selectRemovedShift(date) {
     const shift = getShiftByDate(date);
-    if (!shift) {
+    if (!isExchangeableWorkedShift(shift)) {
       return;
     }
 
@@ -493,11 +507,11 @@
     shiftPickerHelp.textContent = existingShift
       ? "Tu peux modifier l'horaire ou supprimer cette saisie."
       : "Choisis un horaire pour marquer ce jour comme travaillé, ou coche le repos bloqué si tu ne veux pas travailler ce jour.";
-    shiftTypeSelect.value = existingShift ? existingShift.shiftType : state.lastSelectedShiftType;
+    shiftTypeSelect.value = existingShift ? existingShift.shiftType : getPreferredPickerShiftType();
     blockedRestCheckbox.checked = isBlockedRest;
     shiftTypeSelect.disabled = isBlockedRest;
     deleteShiftButton.disabled = !existingShift;
-    selectRemovedButton.disabled = !isRegularWorkedShift(existingShift);
+    selectRemovedButton.disabled = !isExchangeableWorkedShift(existingShift);
     shiftPickerBackdrop.classList.remove("hidden");
 
     renderDayDetails(date);
@@ -600,7 +614,7 @@
 
     detailsEditButton.disabled = !date;
     detailsRemoveButton.disabled = !shift;
-    detailsSelectRemovedButton.disabled = !isRegularWorkedShift(shift);
+    detailsSelectRemovedButton.disabled = !isExchangeableWorkedShift(shift);
     detailsToggleBlockedButton.disabled = !date || isAnnualLeave;
     detailsToggleBlockedButton.textContent = isBlocked ? "Débloquer le repos" : "Bloquer en repos";
   }
@@ -669,6 +683,33 @@
     }
 
     return [...statusEntry.availability.allowedDayShiftTypes, ...statusEntry.availability.allowedNightShiftTypes];
+  }
+
+  function formatDetailedExplanation(result) {
+    const reasonCodes = Array.isArray(result && result.reasonCodes) ? result.reasonCodes : [];
+    const lines = [];
+
+    if (reasonCodes.includes("CANDIDATE_DATE_BLOCKED_BY_USER")) {
+      lines.push("La date candidate est marquée comme repos indisponible par l'utilisateur.");
+    }
+    if (reasonCodes.includes("CANDIDATE_DATE_ALREADY_WORKED")) {
+      lines.push("Tu travailles déjà ce jour là !");
+    }
+    if (reasonCodes.includes("CANDIDATE_DATE_IS_REMOVED_DATE")) {
+      lines.push("La date candidate est identique au poste retiré.");
+    }
+    if (reasonCodes.includes("TOO_MANY_WORKED_DAYS_IN_7")) {
+      lines.push("Tu ferais plus de 4 jours travaillés sur 7 jours glissants.");
+    }
+    if (reasonCodes.includes("INSUFFICIENT_REST_HOURS")) {
+      lines.push("Le repos minimum de 12 heures entre deux postes consécutifs n'est pas respecté.");
+    }
+
+    if (lines.length === 0) {
+      lines.push(engine.explainValidationResult(result));
+    }
+
+    return lines.map((line) => escapeHtml(line));
   }
 
   function filterRequestShiftTypes(shiftTypes) {
@@ -881,6 +922,8 @@
 
     if (isAnnualLeaveShift(shift)) {
       lines.push(`Congé annuel : ${escapeHtml("oui")}`);
+    } else if (isTrainingShift(shift)) {
+      lines.push(`Horaire : ${escapeHtml("FO (9h-17h)")}`);
     } else if (shift) {
       lines.push(`Horaire : ${escapeHtml(SHIFT_TYPE_LABELS[shift.shiftType])}`);
     }
@@ -920,10 +963,11 @@
       lines.push("");
       const statusLabel = result.allowed ? "possible" : "impossible";
       const statusClass = result.allowed ? "detail-status-possible" : "detail-status-impossible";
+      const explanationLines = formatDetailedExplanation(result);
       lines.push(
         `<strong>${escapeHtml(getDayDetailsShiftLabel(shiftType, result))} : <span class="${statusClass}">${escapeHtml(statusLabel)}</span></strong>`
       );
-      lines.push(`<strong>Explication</strong> : ${escapeHtml(engine.explainValidationResult(result))}`);
+      lines.push(`<strong>Explication</strong> : ${explanationLines[0]}`);
 
       if (result.rollingRule && Array.isArray(result.rollingRule.blockingWindows) && result.rollingRule.blockingWindows.length > 0) {
         result.rollingRule.blockingWindows.forEach((window) => {
@@ -932,6 +976,10 @@
           );
         });
       }
+
+      explanationLines.slice(1).forEach((line) => {
+        lines.push(line);
+      });
 
       if (state.debugMode) {
         lines.push(`Debug - reasonCodes : ${escapeHtml(result.reasonCodes.join(", ") || "NONE")}`);
@@ -968,7 +1016,7 @@
     try {
       const parsed = JSON.parse(raw);
       state.schedule = Array.isArray(parsed.schedule) ? engine.sortSchedule(parsed.schedule) : [];
-      state.removedShift = parsed.removedShift || null;
+      state.removedShift = isExchangeableWorkedShift(parsed.removedShift) ? parsed.removedShift : null;
       state.exchangeMode = parsed.exchangeMode || "ANY";
       state.blockedRestDates = Array.isArray(parsed.blockedRestDates) ? parsed.blockedRestDates : [];
       state.visibleMonthStart = parsed.visibleMonthStart ? parseDateString(parsed.visibleMonthStart) : getMonthStart(new Date());
@@ -1010,7 +1058,7 @@
     }
 
     state.schedule = Array.isArray(payload.schedule) ? engine.sortSchedule(payload.schedule) : [];
-    state.removedShift = payload.removedShift || null;
+    state.removedShift = isExchangeableWorkedShift(payload.removedShift) ? payload.removedShift : null;
     state.exchangeMode = payload.exchangeMode || "ANY";
     state.blockedRestDates = Array.isArray(payload.blockedRestDates) ? payload.blockedRestDates : [];
     state.visibleMonthStart = payload.visibleMonthStart ? parseDateString(payload.visibleMonthStart) : getMonthStart(new Date());

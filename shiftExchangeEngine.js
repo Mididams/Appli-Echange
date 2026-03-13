@@ -54,6 +54,13 @@ const SHIFT_TYPES = {
     crossesMidnight: false,
     family: "day",
   },
+  FO: {
+    label: "FO",
+    start: "09:00",
+    end: "17:00",
+    crossesMidnight: false,
+    family: "day",
+  },
   CA: {
     label: "Congé annuel",
     start: "00:00",
@@ -887,13 +894,13 @@ function explainValidationResult(result) {
     messages.push("La date candidate est marquée comme repos indisponible par l'utilisateur.");
   }
   if (reasonCodes.includes(REASON_CODES.CANDIDATE_DATE_ALREADY_WORKED)) {
-    messages.push("La date candidate est déjà travaillée dans le planning simulé.");
+    messages.push("Tu travailles déjà ce jour là !");
   }
   if (reasonCodes.includes(REASON_CODES.CANDIDATE_DATE_IS_REMOVED_DATE)) {
     messages.push("La date candidate est identique au poste retiré.");
   }
   if (reasonCodes.includes(REASON_CODES.TOO_MANY_WORKED_DAYS_IN_7)) {
-    messages.push("Le planning simulé dépasse 4 jours travaillés sur au moins une fenêtre glissante de 7 jours.");
+    messages.push("Tu ferais plus de 4 jours travaillés sur 7 jours glissants !");
   }
   if (reasonCodes.includes(REASON_CODES.INSUFFICIENT_REST_HOURS)) {
     messages.push("Le repos minimum de 12 heures entre deux postes consécutifs n'est pas respecté.");
