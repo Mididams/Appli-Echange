@@ -51,6 +51,7 @@
   const dayDetailsTitle = document.getElementById("day-details-title");
   const dayDetailsOutput = document.getElementById("day-details-output");
   const statusBanner = document.getElementById("status-banner");
+  const helpButton = document.getElementById("help-button");
   const prevMonthButton = document.getElementById("prev-month-button");
   const nextMonthButton = document.getElementById("next-month-button");
   const requestExchangeButton = document.getElementById("request-exchange-button");
@@ -86,6 +87,8 @@
   const requestRangeButtons = document.querySelectorAll(".request-range-button");
   const include1022Checkbox = document.getElementById("include-10-22-checkbox");
   const include1123Checkbox = document.getElementById("include-11-23-checkbox");
+  const helpModalBackdrop = document.getElementById("help-modal-backdrop");
+  const closeHelpButton = document.getElementById("close-help-button");
 
   function getMonthStart(date) {
     return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
@@ -883,6 +886,14 @@
     requestModalBackdrop.classList.add("hidden");
   }
 
+  function openHelpModal() {
+    helpModalBackdrop.classList.remove("hidden");
+  }
+
+  function closeHelpModal() {
+    helpModalBackdrop.classList.add("hidden");
+  }
+
   async function copyRequestText() {
     const text = requestTextOutput.value;
     if (!text) {
@@ -1134,6 +1145,7 @@
     renderAll();
   });
 
+  helpButton.addEventListener("click", openHelpModal);
   requestExchangeButton.addEventListener("click", openRequestModal);
   clearRemovedButton.addEventListener("click", clearRemovedShift);
 
@@ -1251,6 +1263,12 @@
       closeRequestModal();
     }
   });
+  closeHelpButton.addEventListener("click", closeHelpModal);
+  helpModalBackdrop.addEventListener("click", (event) => {
+    if (event.target === helpModalBackdrop) {
+      closeHelpModal();
+    }
+  });
 
   detailsEditButton.addEventListener("click", () => {
     if (!state.selectedDate) {
@@ -1288,6 +1306,9 @@
       }
       if (!requestModalBackdrop.classList.contains("hidden")) {
         closeRequestModal();
+      }
+      if (!helpModalBackdrop.classList.contains("hidden")) {
+        closeHelpModal();
       }
       if (!settingsPanel.classList.contains("hidden")) {
         setSettingsPanelOpen(false);

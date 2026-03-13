@@ -135,8 +135,16 @@ select:hover {
   background: #fff9ef;
 }
 
+.help-box-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
 .help-box h1 {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 26px;
 }
 
@@ -413,6 +421,13 @@ pre {
   width: min(720px, 100%);
 }
 
+.modal-card-help {
+  width: min(860px, 100%);
+  max-height: min(88vh, 920px);
+  display: flex;
+  flex-direction: column;
+}
+
 .modal-card h2,
 .modal-card p {
   margin-top: 0;
@@ -488,6 +503,17 @@ pre {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.help-modal-content {
+  overflow-y: auto;
+  padding-right: 6px;
+  margin-bottom: 14px;
+  line-height: 1.55;
+}
+
+.help-modal-content p {
+  margin: 0 0 14px;
 }
 
 @media (min-width: 1040px) {
