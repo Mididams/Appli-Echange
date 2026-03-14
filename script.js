@@ -91,7 +91,6 @@
   const legendContent = document.getElementById("legend-content");
   const dayDetailsTitle = document.getElementById("day-details-title");
   const dayDetailsOutput = document.getElementById("day-details-output");
-  const statusBanner = document.getElementById("status-banner");
   const helpButton = document.getElementById("help-button");
   const prevMonthButton = document.getElementById("prev-month-button");
   const nextMonthButton = document.getElementById("next-month-button");
@@ -908,7 +907,6 @@
       }
     }
 
-    renderStatusBanner();
     renderDetailsActions();
     renderDayDetails(nextDate);
   }
@@ -1016,43 +1014,6 @@
     summaryContent.appendChild(list);
   }
 
-  function renderStatusBanner() {
-    if (!state.selectedDate) {
-      statusBanner.textContent = "Sélectionne un jour pour voir son état et les actions disponibles.";
-      return;
-    }
-
-    const shift = getShiftByDate(state.selectedDate);
-    const isBlocked = state.blockedRestDates.includes(state.selectedDate);
-    const formattedSelectedDate = formatDisplayDate(state.selectedDate);
-
-    if (isAnnualLeaveShift(shift)) {
-      statusBanner.textContent = `Jour sélectionné : ${formattedSelectedDate}. Ce jour est saisi comme congé annuel.`;
-      return;
-    }
-
-    if (shift) {
-      statusBanner.textContent = `Jour sélectionné : ${formattedSelectedDate}. Utilise les actions à droite pour modifier ce poste, le supprimer ou le choisir comme jour à enlever.`;
-      return;
-    }
-
-    if (isBlocked) {
-      statusBanner.textContent = `Jour sélectionné : ${formattedSelectedDate}. Ce jour est bloqué comme repos indisponible. Tu peux le débloquer depuis le panneau de détails.`;
-      return;
-    }
-
-    if (state.removedShift) {
-      statusBanner.textContent = `Jour sélectionné : ${formattedSelectedDate}. Cette date est analysée comme candidate d'échange. ${
-        isMobileInteractionMode() ? "Double-tape ou laisse le doigt appuyé" : "Double-clique"
-      } si tu veux finalement y saisir un poste.`;
-      return;
-    }
-
-    statusBanner.textContent = `Jour sélectionné : ${formattedSelectedDate}. Utilise "Ajouter / modifier" ou ${
-      isMobileInteractionMode() ? "double-tape ou laisse le doigt appuyé sur ce jour" : "double-clique"
-    } pour saisir un poste travaillé.`;
-  }
-
   function renderDetailsActions() {
     const date = state.selectedDate;
     const shift = date ? getShiftByDate(date) : null;
@@ -1138,24 +1099,86 @@
     return [...statusEntry.availability.allowedDayShiftTypes, ...statusEntry.availability.allowedNightShiftTypes];
   }
 
-  function formatDetailedExplanation(result) {
+  function getShiftFamilyLabel(shiftType) {
+    const shiftConfig = engine.SHIFT_TYPES[shiftType];
+    if (!shiftConfig) {
+      return "Poste";
+    }
+
+    if (shiftConfig.family === "night") {
+      return "Nuit";
+    }
+
+    if (shiftConfig.family === "day") {
+      return "Jour";
+    }
+
+    return shiftConfig.label || "Poste";
+  }
+
+  function getShiftRoleLabel(shiftType, isCandidate) {
+    const familyLabel = getShiftFamilyLabel(shiftType);
+    const workedLabel = familyLabel === "Nuit" ? "travaillée" : "travaillé";
+    return `${familyLabel} ${isCandidate ? "à échanger" : workedLabel}`;
+  }
+
+  function isSameShiftIdentity(shift, referenceShift) {
+    return Boolean(
+      shift &&
+        referenceShift &&
+        shift.date === referenceShift.date &&
+        shift.shiftType === referenceShift.shiftType
+    );
+  }
+
+  function getRestConflictDirectionLabel(result, candidateShift) {
+    if (!result || !result.restRule || !Array.isArray(result.restRule.conflicts) || !candidateShift) {
+      return "";
+    }
+
+    const matchingConflict = result.restRule.conflicts.find((conflict) => {
+      return (
+        isSameShiftIdentity(conflict.previousShift, candidateShift) ||
+        isSameShiftIdentity(conflict.nextShift, candidateShift)
+      );
+    });
+
+    if (!matchingConflict) {
+      return "";
+    }
+
+    const previousIsCandidate = isSameShiftIdentity(matchingConflict.previousShift, candidateShift);
+    const nextIsCandidate = isSameShiftIdentity(matchingConflict.nextShift, candidateShift);
+    const previousLabel = getShiftRoleLabel(matchingConflict.previousShift && matchingConflict.previousShift.shiftType, previousIsCandidate);
+    const nextLabel = getShiftRoleLabel(matchingConflict.nextShift && matchingConflict.nextShift.shiftType, nextIsCandidate);
+
+    return `${previousLabel} => ${nextLabel}`;
+  }
+
+  function formatDetailedExplanation(result, candidateShift) {
     const reasonCodes = Array.isArray(result && result.reasonCodes) ? result.reasonCodes : [];
-    const lines = [];
 
     if (reasonCodes.includes("CANDIDATE_DATE_BLOCKED_BY_USER")) {
-      lines.push("La date candidate est marquée comme repos indisponible par l'utilisateur.");
+      return [escapeHtml("La date candidate est marquée comme repos indisponible par l'utilisateur.")];
     }
+
+    const lines = [];
     if (reasonCodes.includes("CANDIDATE_DATE_ALREADY_WORKED")) {
       lines.push("Tu travailles déjà ce jour là !");
     }
     if (reasonCodes.includes("CANDIDATE_DATE_IS_REMOVED_DATE")) {
       lines.push("La date candidate est identique au poste retiré.");
     }
+    if (reasonCodes.includes("INSUFFICIENT_REST_HOURS")) {
+      const restConflictDirection = getRestConflictDirectionLabel(result, candidateShift);
+      lines.push(
+        restConflictDirection
+          ? `Le repos minimum de 12 heures entre deux postes consécutifs n'est pas respecté\u00A0: ${restConflictDirection}.`
+          : "Le repos minimum de 12 heures entre deux postes consécutifs n'est pas respecté."
+      );
+    }
     if (reasonCodes.includes("TOO_MANY_WORKED_DAYS_IN_7")) {
       lines.push("Tu ferais plus de 4 jours travaillés sur 7 jours glissants.");
-    }
-    if (reasonCodes.includes("INSUFFICIENT_REST_HOURS")) {
-      lines.push("Le repos minimum de 12 heures entre deux postes consécutifs n'est pas respecté.");
     }
 
     if (lines.length === 0) {
@@ -1467,16 +1490,16 @@
     dayDetailsTitle.textContent = `Détails du ${formatDisplayDateWithWeekday(date)}`;
 
     const shift = getShiftByDate(date);
-    const lines = [`<strong>Date : ${escapeHtml(formatDisplayDateWithWeekday(date))}</strong>`];
+    const lines = [`<strong>Date\u00A0: ${escapeHtml(formatDisplayDateWithWeekday(date))}</strong>`];
 
     if (isAnnualLeaveShift(shift)) {
-      lines.push(`Congé annuel : ${escapeHtml("oui")}`);
+      lines.push(`Congé annuel\u00A0: ${escapeHtml("oui")}`);
     } else if (isTrainingShift(shift)) {
-      lines.push(`Horaire : ${escapeHtml("FO (9h-17h)")}`);
+      lines.push(`Horaire\u00A0: ${escapeHtml("FO (9h-17h)")}`);
     } else if (shift) {
-      lines.push(`Horaire : ${escapeHtml(SHIFT_TYPE_LABELS[shift.shiftType])}`);
+      lines.push(`Horaire\u00A0: ${escapeHtml(SHIFT_TYPE_LABELS[shift.shiftType])}`);
       if (shift.postLabel) {
-        lines.push(`Poste : ${escapeHtml(shift.postLabel)}`);
+        lines.push(`Poste\u00A0: ${escapeHtml(shift.postLabel)}`);
       }
     }
 
@@ -1490,16 +1513,16 @@
     const availabilityEntry = state.visibleStatuses ? state.visibleStatuses[date] : null;
     const availability = availabilityEntry ? availabilityEntry.availability : null;
     lines.push("");
-    lines.push(`Mode actif : ${escapeHtml(EXCHANGE_MODE_LABELS[state.exchangeMode])}`);
+    lines.push(`Mode actif\u00A0: ${escapeHtml(EXCHANGE_MODE_LABELS[state.exchangeMode])}`);
 
     if (availability) {
       lines.push(
-        `Horaires jour autorisés : ${escapeHtml(
+        `Horaires jour autorisés\u00A0: ${escapeHtml(
           availability.allowedDayShiftTypes.map((shiftType) => SHIFT_TYPE_LABELS[shiftType] || shiftType).join(", ") || "aucun"
         )}`
       );
       lines.push(
-        `Horaires nuit autorisés : ${escapeHtml(
+        `Horaires nuit autorisés\u00A0: ${escapeHtml(
           availability.allowedNightShiftTypes.map((shiftType) => SHIFT_TYPE_LABELS[shiftType] || shiftType).join(", ") || "aucun"
         )}`
       );
@@ -1515,18 +1538,22 @@
       lines.push("");
       const statusLabel = result.allowed ? "possible" : "impossible";
       const statusClass = result.allowed ? "detail-status-possible" : "detail-status-impossible";
-      const explanationLines = formatDetailedExplanation(result);
+      const explanationLines = formatDetailedExplanation(result, { date, shiftType });
+      const isBlockedByUser =
+        Array.isArray(result.reasonCodes) && result.reasonCodes.includes("CANDIDATE_DATE_BLOCKED_BY_USER");
       lines.push(
-        `<strong>${escapeHtml(getDayDetailsShiftLabel(shiftType, result))} : <span class="${statusClass}">${escapeHtml(statusLabel)}</span></strong>`
+        `<strong>${escapeHtml(getDayDetailsShiftLabel(shiftType, result))}\u00A0: <span class="${statusClass}">${escapeHtml(statusLabel)}</span></strong>`
       );
-      lines.push(`<strong>Explication</strong> : ${explanationLines[0]}`);
+      lines.push(`<strong>Explication</strong>\u00A0: ${explanationLines[0]}`);
 
-      if (result.rollingRule && Array.isArray(result.rollingRule.blockingWindows) && result.rollingRule.blockingWindows.length > 0) {
-        result.rollingRule.blockingWindows.forEach((window) => {
-          lines.push(
-            `Période bloquante : ${escapeHtml(formatDisplayDate(window.startDate))} -> ${escapeHtml(formatDisplayDate(window.endDate))} (${escapeHtml(window.workedDaysCount)} jours travaillés)`
-          );
-        });
+      if (!isBlockedByUser) {
+        if (result.rollingRule && Array.isArray(result.rollingRule.blockingWindows) && result.rollingRule.blockingWindows.length > 0) {
+          result.rollingRule.blockingWindows.forEach((window) => {
+            lines.push(
+              `Période bloquante\u00A0: ${escapeHtml(formatDisplayDate(window.startDate))} -> ${escapeHtml(formatDisplayDate(window.endDate))} (${escapeHtml(window.workedDaysCount)} jours travaillés)`
+            );
+          });
+        }
       }
 
       explanationLines.slice(1).forEach((line) => {
@@ -1649,7 +1676,6 @@
     renderCalendar(state.visibleMonthStart);
     renderSummary();
     renderLegend();
-    renderStatusBanner();
     renderDetailsActions();
     renderDayDetails(state.selectedDate);
   }
