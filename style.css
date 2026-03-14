@@ -30,6 +30,7 @@ body {
   background:
     radial-gradient(circle at top left, #fffbf1 0, transparent 28%),
     linear-gradient(180deg, #f8f4ed 0%, var(--color-bg) 100%);
+  -webkit-text-size-adjust: 100%;
 }
 
 button,
@@ -44,6 +45,7 @@ select {
   background: var(--color-button);
   color: var(--color-text);
   padding: 8px 10px;
+  border-radius: 12px;
 }
 
 button {
@@ -59,6 +61,7 @@ select:hover {
   max-width: 1440px;
   margin: 0 auto;
   padding: 18px;
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
 }
 
 .toolbar {
@@ -153,6 +156,15 @@ select:hover {
   line-height: 1.5;
 }
 
+.mobile-tip {
+  display: none;
+  margin-top: 10px !important;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(46, 134, 171, 0.08);
+  font-size: 14px;
+}
+
 .status-banner {
   margin-bottom: 16px;
   padding: 10px 12px;
@@ -204,12 +216,17 @@ select:hover {
   min-height: 110px;
   padding: 8px;
   border: 1px solid var(--color-border);
+  border-radius: 16px;
   background: white;
   display: flex;
   flex-direction: column;
   gap: 6px;
   text-align: left;
   transition: transform 120ms ease, border-color 120ms ease;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .day-cell:hover {
@@ -415,6 +432,7 @@ pre {
   border: 1px solid var(--color-border);
   padding: 18px;
   box-shadow: var(--shadow-soft);
+  border-radius: 20px;
 }
 
 .modal-card-wide {
@@ -528,11 +546,156 @@ pre {
 }
 
 @media (max-width: 720px) {
+  .app-shell {
+    padding: 12px;
+  }
+
+  .toolbar {
+    padding: 12px;
+  }
+
+  .toolbar-group,
+  .toolbar-group-radio,
+  .settings-menu {
+    width: 100%;
+  }
+
+  .settings-menu {
+    display: flex;
+  }
+
+  .toolbar-group {
+    gap: 10px;
+  }
+
+  .toolbar-group > button,
+  .toolbar-group > label,
+  .settings-menu > button {
+    flex: 1 1 100%;
+    min-height: 44px;
+  }
+
+  .settings-menu > button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .toolbar-group-radio {
+    display: grid;
+    gap: 10px;
+  }
+
+  .toolbar-group-radio label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    min-height: auto;
+  }
+
+  .help-box-header {
+    flex-direction: column;
+  }
+
+  .help-box-header button {
+    width: 100%;
+  }
+
+  .help-box h1 {
+    font-size: 22px;
+  }
+
+  .mobile-tip {
+    display: block;
+  }
+
+  .calendar-panel,
+  .panel-card {
+    padding: 12px;
+  }
+
+  .month-card {
+    overflow-x: auto;
+    padding: 10px;
+  }
+
   .month-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: 560px;
+    gap: 6px;
   }
 
   .weekday {
-    display: none;
+    padding: 6px 4px;
+    font-size: 12px;
+  }
+
+  .day-cell {
+    min-height: 92px;
+    padding: 6px;
+    gap: 4px;
+  }
+
+  .day-number {
+    font-size: 16px;
+  }
+
+  .badge {
+    font-size: 9px;
+    padding: 3px;
+  }
+
+  .side-panel {
+    gap: 12px;
+  }
+
+  .details-actions button,
+  .modal-actions button,
+  .request-shortcuts button {
+    flex: 1 1 calc(50% - 8px);
+  }
+
+  .request-options {
+    gap: 10px;
+  }
+
+  .request-options .checkbox-label {
+    white-space: normal;
+  }
+
+  .modal-backdrop {
+    align-items: end;
+    padding: 8px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  .modal-card,
+  .modal-card-wide,
+  .modal-card-help {
+    width: 100%;
+    max-height: min(92vh, 920px);
+    overflow-y: auto;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .request-textarea {
+    min-height: 180px;
+  }
+}
+
+@media (pointer: coarse) {
+  button,
+  select,
+  input[type="date"],
+  .day-cell {
+    min-height: 44px;
+  }
+
+  .day-cell.empty {
+    min-height: 0;
   }
 }

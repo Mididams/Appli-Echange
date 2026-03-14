@@ -31,6 +31,10 @@
   const MONTH_FORMATTER = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" });
   const REQUEST_DATE_FORMATTER = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" });
   const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+  const MOBILE_LAYOUT_MEDIA_QUERY = window.matchMedia("(max-width: 820px)");
+  const MOBILE_INTERACTION_MEDIA_QUERY = window.matchMedia("(max-width: 820px), (pointer: coarse)");
+  const LONG_PRESS_DURATION_MS = 450;
+  const DOUBLE_TAP_DURATION_MS = 320;
 
   const state = {
     schedule: [],
@@ -44,6 +48,10 @@
     pickerDate: null,
     lastSelectedShiftType: "JOUR_7_19",
   };
+  let longPressTimer = null;
+  let longPressTriggeredDate = null;
+  let lastTappedDate = null;
+  let lastTapTimestamp = 0;
 
   const calendarContainer = document.getElementById("calendar-container");
   const summaryContent = document.getElementById("summary-content");
@@ -92,6 +100,63 @@
 
   function getMonthStart(date) {
     return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+  }
+
+  function isMobileLayout() {
+    return MOBILE_LAYOUT_MEDIA_QUERY.matches;
+  }
+
+  function isMobileInteractionMode() {
+    return MOBILE_INTERACTION_MEDIA_QUERY.matches;
+  }
+
+  function clearLongPressState() {
+    if (longPressTimer) {
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }
+
+  function startDayLongPress(date) {
+    if (!isMobileInteractionMode()) {
+      return;
+    }
+
+    clearLongPressState();
+    longPressTriggeredDate = null;
+    longPressTimer = window.setTimeout(() => {
+      longPressTimer = null;
+      longPressTriggeredDate = date;
+      state.selectedDate = date;
+      openShiftTypePicker(date);
+      renderAll();
+    }, LONG_PRESS_DURATION_MS);
+  }
+
+  function cancelDayLongPress() {
+    clearLongPressState();
+  }
+
+  function resetDoubleTapState() {
+    lastTappedDate = null;
+    lastTapTimestamp = 0;
+  }
+
+  function isMobileDoubleTap(date) {
+    if (!isMobileInteractionMode()) {
+      return false;
+    }
+
+    const now = Date.now();
+    const isDoubleTap = lastTappedDate === date && now - lastTapTimestamp <= DOUBLE_TAP_DURATION_MS;
+    lastTappedDate = date;
+    lastTapTimestamp = now;
+
+    if (isDoubleTap) {
+      resetDoubleTapState();
+    }
+
+    return isDoubleTap;
   }
 
   function setSettingsPanelOpen(isOpen) {
@@ -449,6 +514,7 @@
       const cellState = getDayCellState(dateString);
       button.type = "button";
       button.className = `day-cell state-${cellState}`;
+      button.dataset.date = dateString;
       if (state.selectedDate === dateString) {
         button.classList.add("selected-detail");
       }
@@ -483,6 +549,20 @@
 
       button.addEventListener("click", () => handleDayClick(dateString));
       button.addEventListener("dblclick", () => handleDayDoubleClick(dateString));
+      button.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse") {
+          return;
+        }
+        startDayLongPress(dateString);
+      });
+      button.addEventListener("pointerup", cancelDayLongPress);
+      button.addEventListener("pointercancel", cancelDayLongPress);
+      button.addEventListener("pointerleave", cancelDayLongPress);
+      button.addEventListener("contextmenu", (event) => {
+        if (isMobileInteractionMode()) {
+          event.preventDefault();
+        }
+      });
       monthGrid.appendChild(button);
     });
 
@@ -491,11 +571,35 @@
   }
 
   function renderCalendar(startMonth) {
+    const monthScrollPositions = Array.from(calendarContainer.querySelectorAll(".month-card"), (monthCard) => monthCard.scrollLeft);
     calendarContainer.innerHTML = "";
     const monthStart = startMonth ? getMonthStart(startMonth) : getMonthStart(state.visibleMonthStart);
-    const secondMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1);
     calendarContainer.appendChild(renderMonth(monthStart.getFullYear(), monthStart.getMonth()));
+    const secondMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1);
     calendarContainer.appendChild(renderMonth(secondMonth.getFullYear(), secondMonth.getMonth()));
+    Array.from(calendarContainer.querySelectorAll(".month-card")).forEach((monthCard, index) => {
+      monthCard.scrollLeft = monthScrollPositions[index] || 0;
+    });
+  }
+
+  function renderSelectedDayState(previousDate, nextDate) {
+    if (previousDate) {
+      const previousButton = calendarContainer.querySelector(`.day-cell[data-date="${previousDate}"]`);
+      if (previousButton) {
+        previousButton.classList.remove("selected-detail");
+      }
+    }
+
+    if (nextDate) {
+      const nextButton = calendarContainer.querySelector(`.day-cell[data-date="${nextDate}"]`);
+      if (nextButton) {
+        nextButton.classList.add("selected-detail");
+      }
+    }
+
+    renderStatusBanner();
+    renderDetailsActions();
+    renderDayDetails(nextDate);
   }
 
   function openShiftTypePicker(date) {
@@ -526,12 +630,25 @@
   }
 
   function handleDayClick(date) {
+    if (longPressTriggeredDate === date) {
+      longPressTriggeredDate = null;
+      resetDoubleTapState();
+      return;
+    }
+
+    if (isMobileDoubleTap(date)) {
+      state.selectedDate = date;
+      openShiftTypePicker(date);
+      return;
+    }
+
+    const previousDate = state.selectedDate;
     state.selectedDate = date;
-    renderDayDetails(date);
-    renderAll();
+    renderSelectedDayState(previousDate, date);
   }
 
   function handleDayDoubleClick(date) {
+    resetDoubleTapState();
     state.selectedDate = date;
     openShiftTypePicker(date);
     renderAll();
@@ -602,11 +719,15 @@
     }
 
     if (state.removedShift) {
-      statusBanner.textContent = `Jour sélectionné : ${formattedSelectedDate}. Cette date est analysée comme candidate d'échange. Double-clique si tu veux finalement y saisir un poste.`;
+      statusBanner.textContent = `Jour sélectionné : ${formattedSelectedDate}. Cette date est analysée comme candidate d'échange. ${
+        isMobileInteractionMode() ? "Double-tape ou laisse le doigt appuyé" : "Double-clique"
+      } si tu veux finalement y saisir un poste.`;
       return;
     }
 
-    statusBanner.textContent = `Jour sélectionné : ${formattedSelectedDate}. Utilise "Ajouter / modifier" ou double-clique pour saisir un poste travaillé.`;
+    statusBanner.textContent = `Jour sélectionné : ${formattedSelectedDate}. Utilise "Ajouter / modifier" ou ${
+      isMobileInteractionMode() ? "double-tape ou laisse le doigt appuyé sur ce jour" : "double-clique"
+    } pour saisir un poste travaillé.`;
   }
 
   function renderDetailsActions() {
@@ -1322,6 +1443,12 @@
       setSettingsPanelOpen(false);
     }
   });
+
+  const handleViewportChange = () => {
+    renderAll();
+  };
+  MOBILE_LAYOUT_MEDIA_QUERY.addEventListener("change", handleViewportChange);
+  MOBILE_INTERACTION_MEDIA_QUERY.addEventListener("change", handleViewportChange);
 
   populateShiftTypeSelect();
   loadFromLocalStorage();
