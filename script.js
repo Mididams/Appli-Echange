@@ -31,6 +31,12 @@
   const ROLLING_LIMIT_REASON_CODE = "TOO_MANY_WORKED_DAYS_IN_7";
   const MONTH_FORMATTER = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" });
   const REQUEST_DATE_FORMATTER = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  const DAY_DETAILS_DATE_FORMATTER = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
   const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
   const MOBILE_LAYOUT_MEDIA_QUERY = window.matchMedia("(max-width: 820px)");
   const MOBILE_INTERACTION_MEDIA_QUERY = window.matchMedia("(max-width: 820px), (pointer: coarse)");
@@ -1095,6 +1101,11 @@
     return `${String(date.getDate()).padStart(2, "0")}-${String(date.getMonth() + 1).padStart(2, "0")}-${date.getFullYear()}`;
   }
 
+  function formatDisplayDateWithWeekday(dateString) {
+    const formatted = DAY_DETAILS_DATE_FORMATTER.format(parseDateString(dateString));
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  }
+
   function formatRequestDate(dateString) {
     return REQUEST_DATE_FORMATTER.format(parseDateString(dateString));
   }
@@ -1453,10 +1464,10 @@
       return;
     }
 
-    dayDetailsTitle.textContent = `Détails du ${formatDisplayDate(date)}`;
+    dayDetailsTitle.textContent = `Détails du ${formatDisplayDateWithWeekday(date)}`;
 
     const shift = getShiftByDate(date);
-    const lines = [`<strong>Date : ${escapeHtml(formatDisplayDate(date))}</strong>`];
+    const lines = [`<strong>Date : ${escapeHtml(formatDisplayDateWithWeekday(date))}</strong>`];
 
     if (isAnnualLeaveShift(shift)) {
       lines.push(`Congé annuel : ${escapeHtml("oui")}`);
