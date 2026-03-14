@@ -780,7 +780,8 @@
       })
       .join(", ");
 
-    return `Bonjour, je souhaite échanger le ${formatRequestDate(state.removedShift.date)} contre : ${candidateText}.`;
+    const removedShiftLabel = formatRequestShiftLabel(state.removedShift.shiftType);
+    return `Bonjour, je souhaite échanger le ${formatRequestDate(state.removedShift.date)} ${removedShiftLabel} contre : ${candidateText}.`;
   }
 
   function canOpenExchangeRequest() {
