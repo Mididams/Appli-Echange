@@ -478,6 +478,16 @@ pre {
   margin-bottom: 12px;
 }
 
+.picker-toggle-button {
+  width: 100%;
+  text-align: left;
+}
+
+.picker-toggle-button.is-active {
+  background: var(--color-blocked-rest);
+  border-color: #c36a7a;
+}
+
 .modal-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

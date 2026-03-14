@@ -106,7 +106,7 @@
   const shiftPickerDateLabel = document.getElementById("shift-picker-date-label");
   const shiftPickerHelp = document.getElementById("shift-picker-help");
   const shiftTypeSelect = document.getElementById("shift-type-select");
-  const blockedRestCheckbox = document.getElementById("blocked-rest-checkbox");
+  const blockedRestToggleButton = document.getElementById("blocked-rest-toggle-button");
   const saveShiftButton = document.getElementById("save-shift-button");
   const deleteShiftButton = document.getElementById("delete-shift-button");
   const selectRemovedButton = document.getElementById("select-removed-button");
@@ -904,6 +904,19 @@
     renderDayDetails(nextDate);
   }
 
+  function isPickerBlockedRestActive() {
+    return blockedRestToggleButton.getAttribute("aria-pressed") === "true";
+  }
+
+  function updateBlockedRestToggleButton(isBlockedRest) {
+    blockedRestToggleButton.setAttribute("aria-pressed", isBlockedRest ? "true" : "false");
+    blockedRestToggleButton.classList.toggle("is-active", isBlockedRest);
+    blockedRestToggleButton.textContent = isBlockedRest
+      ? "Debloquer ce jour comme repos indisponible"
+      : "Bloquer ce jour comme repos indisponible";
+    shiftTypeSelect.disabled = isBlockedRest;
+  }
+
   function openShiftTypePicker(date) {
     state.pickerDate = date;
     state.selectedDate = date;
@@ -915,10 +928,9 @@
     shiftPickerDateLabel.textContent = formatDisplayDate(date);
     shiftPickerHelp.textContent = existingShift
       ? "Tu peux modifier l'horaire ou supprimer cette saisie."
-      : "Choisis un horaire pour marquer ce jour comme travaillé, ou coche le repos bloqué si tu ne veux pas travailler ce jour.";
+      : "Choisis un horaire pour marquer ce jour comme travaille, ou utilise le bouton de repos bloque si tu ne veux pas travailler ce jour.";
     shiftTypeSelect.value = existingShift ? existingShift.shiftType : getPreferredPickerShiftType();
-    blockedRestCheckbox.checked = isBlockedRest;
-    shiftTypeSelect.disabled = isBlockedRest;
+    updateBlockedRestToggleButton(isBlockedRest);
     deleteShiftButton.disabled = !existingShift;
     updatePickerRemovedActionButton(date, existingShift);
     shiftPickerBackdrop.classList.remove("hidden");
@@ -1660,7 +1672,7 @@
       return;
     }
 
-    if (blockedRestCheckbox.checked) {
+    if (isPickerBlockedRestActive()) {
       toggleBlockedRest(state.pickerDate, true);
       closeShiftTypePicker();
       return;
@@ -1693,9 +1705,8 @@
     closeShiftTypePicker();
   });
 
-  blockedRestCheckbox.addEventListener("change", () => {
-    const checked = blockedRestCheckbox.checked;
-    shiftTypeSelect.disabled = checked;
+  blockedRestToggleButton.addEventListener("click", () => {
+    updateBlockedRestToggleButton(!isPickerBlockedRestActive());
   });
 
   closePickerButton.addEventListener("click", closeShiftTypePicker);
