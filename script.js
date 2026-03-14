@@ -125,6 +125,9 @@
   const requestRangeButtons = document.querySelectorAll(".request-range-button");
   const include1022Checkbox = document.getElementById("include-10-22-checkbox");
   const include1123Checkbox = document.getElementById("include-11-23-checkbox");
+  const requestModeAnyCheckbox = document.getElementById("request-mode-any-checkbox");
+  const requestModeDayCheckbox = document.getElementById("request-mode-day-checkbox");
+  const requestModeNightCheckbox = document.getElementById("request-mode-night-checkbox");
   const helpModalBackdrop = document.getElementById("help-modal-backdrop");
   const closeHelpButton = document.getElementById("close-help-button");
   const resetConfirmBackdrop = document.getElementById("reset-confirm-backdrop");
@@ -1165,6 +1168,41 @@
     });
   }
 
+  function setRequestExchangeMode(mode) {
+    requestModeAnyCheckbox.checked = mode === "ANY";
+    requestModeDayCheckbox.checked = mode === "DAY";
+    requestModeNightCheckbox.checked = mode === "NIGHT";
+  }
+
+  function getRequestExchangeMode() {
+    if (requestModeDayCheckbox.checked) {
+      return "DAY";
+    }
+
+    if (requestModeNightCheckbox.checked) {
+      return "NIGHT";
+    }
+
+    return "ANY";
+  }
+
+  function getAllowedShiftTypesForRequestEntry(statusEntry) {
+    if (!statusEntry || !statusEntry.availability) {
+      return [];
+    }
+
+    const requestMode = getRequestExchangeMode();
+    if (requestMode === "DAY") {
+      return statusEntry.availability.allowedDayShiftTypes;
+    }
+
+    if (requestMode === "NIGHT") {
+      return statusEntry.availability.allowedNightShiftTypes;
+    }
+
+    return [...statusEntry.availability.allowedDayShiftTypes, ...statusEntry.availability.allowedNightShiftTypes];
+  }
+
   function getExchangeRequestCandidates() {
     if (!state.removedShift || !state.visibleStatuses) {
       return [];
@@ -1174,7 +1212,7 @@
       .filter((date) => !getShiftByDate(date) && date !== state.removedShift.date && !state.blockedRestDates.includes(date))
       .map((date) => {
         const statusEntry = state.visibleStatuses[date];
-        const allowedShiftTypes = [...new Set(filterRequestShiftTypes(getAllowedShiftTypesForEntry(statusEntry)))];
+        const allowedShiftTypes = [...new Set(filterRequestShiftTypes(getAllowedShiftTypesForRequestEntry(statusEntry)))];
         return {
           date,
           allowedShiftTypes,
@@ -1205,9 +1243,15 @@
       return "";
     }
 
+    const requestMode = getRequestExchangeMode();
+
     const candidateText = candidates
       .map((candidate) => {
         const formattedShifts = candidate.allowedShiftTypes.map((shiftType) => formatRequestShiftLabel(shiftType));
+        if (requestMode === "DAY" || requestMode === "NIGHT") {
+          return formatRequestDate(candidate.date);
+        }
+
         if (formattedShifts.length === 1) {
           return `${formatRequestDate(candidate.date)} ${formattedShifts[0]}`;
         }
@@ -1217,6 +1261,14 @@
       .join(", ");
 
     const removedShiftLabel = formatRequestShiftLabel(state.removedShift.shiftType);
+    if (requestMode === "DAY") {
+      return `Bonjour, je souhaite échanger le ${formatRequestDate(state.removedShift.date)} ${removedShiftLabel} contre en jour : ${candidateText}.`;
+    }
+
+    if (requestMode === "NIGHT") {
+      return `Bonjour, je souhaite échanger le ${formatRequestDate(state.removedShift.date)} ${removedShiftLabel} contre en nuit : ${candidateText}.`;
+    }
+
     return `Bonjour, je souhaite échanger le ${formatRequestDate(state.removedShift.date)} ${removedShiftLabel} contre : ${candidateText}.`;
   }
 
@@ -1261,9 +1313,10 @@
   }
 
   function getDefaultRequestRange(candidates) {
-    const minDate = candidates[0].date;
-    const maxDate = candidates[candidates.length - 1].date;
-    const removedDate = state.removedShift ? state.removedShift.date : minDate;
+    const visibleDates = getVisibleDateStrings();
+    const minDate = visibleDates[0];
+    const maxDate = visibleDates[visibleDates.length - 1];
+    const removedDate = state.removedShift ? state.removedShift.date : candidates[0].date;
 
     return {
       startDate: clampDateString(addDays(removedDate, -5), minDate, maxDate),
@@ -1305,12 +1358,14 @@
     }
 
     const candidates = getExchangeRequestCandidates();
-    requestStartDateInput.min = candidates[0].date;
-    requestStartDateInput.max = candidates[candidates.length - 1].date;
-    requestEndDateInput.min = candidates[0].date;
-    requestEndDateInput.max = candidates[candidates.length - 1].date;
+    const visibleDates = getVisibleDateStrings();
+    requestStartDateInput.min = visibleDates[0];
+    requestStartDateInput.max = visibleDates[visibleDates.length - 1];
+    requestEndDateInput.min = visibleDates[0];
+    requestEndDateInput.max = visibleDates[visibleDates.length - 1];
     include1022Checkbox.checked = false;
     include1123Checkbox.checked = false;
+    setRequestExchangeMode(state.exchangeMode);
     const defaultRange = getDefaultRequestRange(candidates);
     requestStartDateInput.value = defaultRange.startDate;
     requestEndDateInput.value = defaultRange.endDate;
@@ -1726,6 +1781,20 @@
   requestEndDateInput.addEventListener("change", clearActiveRequestRangeButtons);
   include1022Checkbox.addEventListener("change", refreshRequestText);
   include1123Checkbox.addEventListener("change", refreshRequestText);
+  [
+    ["ANY", requestModeAnyCheckbox],
+    ["DAY", requestModeDayCheckbox],
+    ["NIGHT", requestModeNightCheckbox],
+  ].forEach(([mode, checkbox]) => {
+    checkbox.addEventListener("change", () => {
+      if (!checkbox.checked) {
+        setRequestExchangeMode("ANY");
+      } else {
+        setRequestExchangeMode(mode);
+      }
+      refreshRequestText();
+    });
+  });
   requestRangeButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const days = Number(button.dataset.rangeDays);
