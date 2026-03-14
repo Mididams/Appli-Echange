@@ -339,6 +339,10 @@ select:hover {
   flex: 0 1 100%;
 }
 
+.day-badges .badge + .badge {
+  margin-top: 4px;
+}
+
 .panel-card {
   padding: 16px;
 }

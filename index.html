@@ -33,10 +33,12 @@
                 <button id="toggle-debug-button" type="button">Mode debug : OFF</button>
                 <button id="export-button" type="button">Exporter JSON</button>
                 <button id="import-button" type="button">Importer JSON</button>
+                <button id="excel-import-button" type="button">Importer planning Excel</button>
               </div>
             </div>
           </div>
           <input id="import-file-input" type="file" accept="application/json" hidden />
+          <input id="excel-import-file-input" type="file" accept=".xlsx,.xls,.xlsm,.xlsb,.ods,.fods" hidden />
         </div>
       </header>
 
@@ -53,6 +55,7 @@
               panneau de droite pour ajouter, modifier, supprimer ou choisir le jour à enlever. 4. Les disponibilités apparaissent
               automatiquement.
             </p>
+            <p>Tu peux aussi importer ton planning Excel depuis <strong>Paramètres</strong>.</p>
             <p class="mobile-tip">
               Sur mobile, touche une date pour la consulter puis fais un double tap ou laisse le doigt appuyé pour
               l'ouvrir en modification.
@@ -186,6 +189,8 @@
           <p>Les données ne sont pas synchronisées entre l'ordi et le téléphone.</p>
           <p>Les données sont sauvegardées dans le navigateur donc si tu le nettoies (ccleaner ou autre), si tu changes d'ordinateur ou de navigateur, ou si tu cliques sur <strong>"Réinitialiser"</strong>, les données seront perdues.</p>
           <p>Pour l'éviter, une fois le planning rentré, va dans <strong>"Paramètres"</strong> en haut à droite pour faire une sauvegarde des jours déjà rentrés. Clique sur <strong>"Exporter JSON"</strong> (le fichier de sauvegarde) et enregistre le dans ton ordi. Tu pourras plus tard faire <strong>"Importer JSON"</strong> pour restaurer les données.</p>
+          <p>Tu peux aussi <strong>importer directement ton planning</strong> depuis <strong>"Paramètres" &gt; "Importer planning Excel"</strong>. L'appli accepte les fichiers <strong>.xlsx</strong>, <strong>.xls</strong>, <strong>.xlsm</strong>, <strong>.xlsb</strong>, <strong>.ods</strong> et <strong>.fods</strong>.</p>
+          <p>L'import lit les lignes <strong>"Info. jour"</strong> et <strong>"Hor."</strong> de ton fichier. Les codes reconnus sont : <strong>RH</strong>, <strong>RC</strong> et <strong>FE</strong> = repos, <strong>CA</strong> = congé, <strong>FO</strong> = 9h-17h, <strong>N0</strong> = 19h-7h, <strong>M2</strong>, <strong>M2T</strong> et <strong>W2</strong> = 7h-19h, <strong>M5</strong> = 10h-22h, <strong>M6</strong> = 11h-23h.</p>
           <p>Tout en haut, tu peux choisir le mode de recherche en fonction de ce que tu préfères échanger : <strong>Jour et nuit</strong>, <strong>que jour</strong>, <strong>que nuit</strong>.</p>
           <p>Ensuite double-clic sur le jour que tu veux échanger, ou sur mobile fais un double tap ou un appui long, puis coche <strong>"choisir comme jour à échanger"</strong>.</p>
           <p>L'appli te propose :</p>
@@ -213,6 +218,7 @@
     </div>
 
     <script src="./shiftExchangeEngine.js"></script>
+    <script src="./vendor/xlsx.full.min.js"></script>
     <script src="./script.js"></script>
   </body>
 </html>

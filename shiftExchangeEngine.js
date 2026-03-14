@@ -481,6 +481,90 @@ function checkCompatibilityRule(schedule) {
   };
 }
 
+function getBlockingWindowKey(window) {
+  return `${window.startDate}_${window.endDate}`;
+}
+
+function getConflictKey(conflict) {
+  const previous = conflict.previousShift || {};
+  const next = conflict.nextShift || {};
+  return `${previous.date || "?"}:${previous.shiftType || "?"}->${next.date || "?"}:${next.shiftType || "?"}`;
+}
+
+function getWorsenedRollingWindows(baselineRule, simulatedRule) {
+  const baselineCounts = new Map(
+    (baselineRule && Array.isArray(baselineRule.blockingWindows) ? baselineRule.blockingWindows : []).map((window) => {
+      return [getBlockingWindowKey(window), window.workedDaysCount];
+    })
+  );
+
+  return (simulatedRule && Array.isArray(simulatedRule.blockingWindows) ? simulatedRule.blockingWindows : []).filter((window) => {
+    const baselineCount = baselineCounts.get(getBlockingWindowKey(window));
+    return baselineCount === undefined || window.workedDaysCount > baselineCount;
+  });
+}
+
+function getNewConflicts(baselineRule, simulatedRule) {
+  const baselineKeys = new Set(
+    (baselineRule && Array.isArray(baselineRule.conflicts) ? baselineRule.conflicts : []).map(getConflictKey)
+  );
+
+  return (simulatedRule && Array.isArray(simulatedRule.conflicts) ? simulatedRule.conflicts : []).filter((conflict) => {
+    return !baselineKeys.has(getConflictKey(conflict));
+  });
+}
+
+function getEffectiveValidationResult(baselineValidation, simulatedValidation) {
+  const worsenedRollingWindows = getWorsenedRollingWindows(
+    baselineValidation ? baselineValidation.rollingRule : null,
+    simulatedValidation ? simulatedValidation.rollingRule : null
+  );
+  const newRestConflicts = getNewConflicts(
+    baselineValidation ? baselineValidation.restRule : null,
+    simulatedValidation ? simulatedValidation.restRule : null
+  );
+  const newCompatibilityConflicts = getNewConflicts(
+    baselineValidation ? baselineValidation.compatibilityRule : null,
+    simulatedValidation ? simulatedValidation.compatibilityRule : null
+  );
+
+  const structuralRule = simulatedValidation
+    ? simulatedValidation.structuralRule
+    : { valid: false, invalidShifts: [], duplicateWorkedDates: [], details: [], reasonCodes: [] };
+  const rollingRule = {
+    valid: worsenedRollingWindows.length === 0,
+    blockingWindows: worsenedRollingWindows,
+    reasonCodes: worsenedRollingWindows.length === 0 ? [] : [REASON_CODES.TOO_MANY_WORKED_DAYS_IN_7],
+  };
+  const restRule = {
+    valid: newRestConflicts.length === 0,
+    conflicts: newRestConflicts,
+    reasonCodes: newRestConflicts.length === 0 ? [] : [REASON_CODES.INSUFFICIENT_REST_HOURS],
+  };
+  const compatibilityReasonCodes = [...new Set(newCompatibilityConflicts.flatMap((conflict) => conflict.reasonCodes || []))];
+  const compatibilityRule = {
+    valid: newCompatibilityConflicts.length === 0,
+    conflicts: newCompatibilityConflicts,
+    reasonCodes: compatibilityReasonCodes,
+  };
+
+  const reasonCodes = [
+    ...(structuralRule && Array.isArray(structuralRule.reasonCodes) ? structuralRule.reasonCodes : []),
+    ...rollingRule.reasonCodes,
+    ...restRule.reasonCodes,
+    ...compatibilityRule.reasonCodes,
+  ];
+
+  return {
+    valid: Boolean(structuralRule.valid) && rollingRule.valid && restRule.valid && compatibilityRule.valid,
+    structuralRule,
+    rollingRule,
+    restRule,
+    compatibilityRule,
+    reasonCodes: [...new Set(reasonCodes)],
+  };
+}
+
 function simulateExchange(schedule, removedShift, candidateShift) {
   const scheduleValidation = validateScheduleInput(schedule);
   const removedShiftValidation = validateShiftInput(removedShift, "removedShift");
@@ -689,7 +773,9 @@ function isExchangeAllowed(schedule, removedShift, candidateShift, options = {})
   reasonCodes.push(...blockedRestRule.reasonCodes);
 
   const simulation = simulateExchange(schedule, removedShift, candidateShift);
-  const validation = validateSchedule(simulation.simulatedSchedule);
+  const baselineValidation = validateSchedule(scheduleValidation.valid ? schedule : []);
+  const simulatedValidation = validateSchedule(simulation.simulatedSchedule);
+  const validation = getEffectiveValidationResult(baselineValidation, simulatedValidation);
 
   return {
     allowed: reasonCodes.length === 0 && simulation.valid && validation.valid,
