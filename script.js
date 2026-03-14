@@ -1154,20 +1154,6 @@
     return lines.map((line) => escapeHtml(line));
   }
 
-  function filterRequestShiftTypes(shiftTypes) {
-    return shiftTypes.filter((shiftType) => {
-      if (shiftType === "JOUR_10_22") {
-        return include1022Checkbox.checked;
-      }
-
-      if (shiftType === "JOUR_11_23") {
-        return include1123Checkbox.checked;
-      }
-
-      return true;
-    });
-  }
-
   function setRequestExchangeMode(mode) {
     requestModeAnyCheckbox.checked = mode === "ANY";
     requestModeDayCheckbox.checked = mode === "DAY";
@@ -1186,21 +1172,56 @@
     return "ANY";
   }
 
+  function getSelectedRequestShiftTypes() {
+    const requestMode = getRequestExchangeMode();
+
+    if (requestMode === "NIGHT") {
+      return ["NUIT_19_7"];
+    }
+
+    if (requestMode === "DAY") {
+      const selectedShiftTypes = ["JOUR_7_19"];
+      if (include1022Checkbox.checked) {
+        selectedShiftTypes.push("JOUR_10_22");
+      }
+      if (include1123Checkbox.checked) {
+        selectedShiftTypes.push("JOUR_11_23");
+      }
+      return selectedShiftTypes;
+    }
+
+    const selectedShiftTypes = ["JOUR_7_19", "NUIT_19_7"];
+    if (include1022Checkbox.checked) {
+      selectedShiftTypes.push("JOUR_10_22");
+    }
+    if (include1123Checkbox.checked) {
+      selectedShiftTypes.push("JOUR_11_23");
+    }
+
+    return selectedShiftTypes;
+  }
+
+  function syncRequestOptionStates() {
+    const isNightMode = getRequestExchangeMode() === "NIGHT";
+
+    if (isNightMode) {
+      include1022Checkbox.checked = false;
+      include1123Checkbox.checked = false;
+    }
+
+    include1022Checkbox.disabled = isNightMode;
+    include1123Checkbox.disabled = isNightMode;
+  }
+
   function getAllowedShiftTypesForRequestEntry(statusEntry) {
     if (!statusEntry || !statusEntry.availability) {
       return [];
     }
 
-    const requestMode = getRequestExchangeMode();
-    if (requestMode === "DAY") {
-      return statusEntry.availability.allowedDayShiftTypes;
-    }
-
-    if (requestMode === "NIGHT") {
-      return statusEntry.availability.allowedNightShiftTypes;
-    }
-
-    return [...statusEntry.availability.allowedDayShiftTypes, ...statusEntry.availability.allowedNightShiftTypes];
+    return [
+      ...statusEntry.availability.allowedDayShiftTypes,
+      ...statusEntry.availability.allowedNightShiftTypes,
+    ];
   }
 
   function getExchangeRequestCandidates() {
@@ -1212,7 +1233,10 @@
       .filter((date) => !getShiftByDate(date) && date !== state.removedShift.date && !state.blockedRestDates.includes(date))
       .map((date) => {
         const statusEntry = state.visibleStatuses[date];
-        const allowedShiftTypes = [...new Set(filterRequestShiftTypes(getAllowedShiftTypesForRequestEntry(statusEntry)))];
+        const selectedShiftTypes = new Set(getSelectedRequestShiftTypes());
+        const allowedShiftTypes = [...new Set(getAllowedShiftTypesForRequestEntry(statusEntry))].filter((shiftType) =>
+          selectedShiftTypes.has(shiftType)
+        );
         return {
           date,
           allowedShiftTypes,
@@ -1243,12 +1267,14 @@
       return "";
     }
 
-    const requestMode = getRequestExchangeMode();
+    const selectedShiftTypes = getSelectedRequestShiftTypes();
+    const isOnlyStandardDayRequest = selectedShiftTypes.length === 1 && selectedShiftTypes[0] === "JOUR_7_19";
+    const isOnlyNightRequest = selectedShiftTypes.length === 1 && selectedShiftTypes[0] === "NUIT_19_7";
 
     const candidateText = candidates
       .map((candidate) => {
         const formattedShifts = candidate.allowedShiftTypes.map((shiftType) => formatRequestShiftLabel(shiftType));
-        if (requestMode === "DAY" || requestMode === "NIGHT") {
+        if (isOnlyStandardDayRequest || isOnlyNightRequest) {
           return formatRequestDate(candidate.date);
         }
 
@@ -1261,11 +1287,11 @@
       .join(", ");
 
     const removedShiftLabel = formatRequestShiftLabel(state.removedShift.shiftType);
-    if (requestMode === "DAY") {
+    if (isOnlyStandardDayRequest) {
       return `Bonjour, je souhaite échanger le ${formatRequestDate(state.removedShift.date)} ${removedShiftLabel} contre en jour : ${candidateText}.`;
     }
 
-    if (requestMode === "NIGHT") {
+    if (isOnlyNightRequest) {
       return `Bonjour, je souhaite échanger le ${formatRequestDate(state.removedShift.date)} ${removedShiftLabel} contre en nuit : ${candidateText}.`;
     }
 
@@ -1366,6 +1392,7 @@
     include1022Checkbox.checked = false;
     include1123Checkbox.checked = false;
     setRequestExchangeMode(state.exchangeMode);
+    syncRequestOptionStates();
     const defaultRange = getDefaultRequestRange(candidates);
     requestStartDateInput.value = defaultRange.startDate;
     requestEndDateInput.value = defaultRange.endDate;
@@ -1792,6 +1819,7 @@
       } else {
         setRequestExchangeMode(mode);
       }
+      syncRequestOptionStates();
       refreshRequestText();
     });
   });
