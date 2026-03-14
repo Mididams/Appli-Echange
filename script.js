@@ -97,6 +97,9 @@
   const include1123Checkbox = document.getElementById("include-11-23-checkbox");
   const helpModalBackdrop = document.getElementById("help-modal-backdrop");
   const closeHelpButton = document.getElementById("close-help-button");
+  const resetConfirmBackdrop = document.getElementById("reset-confirm-backdrop");
+  const confirmResetButton = document.getElementById("confirm-reset-button");
+  const cancelResetButton = document.getElementById("cancel-reset-button");
 
   function getMonthStart(date) {
     return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
@@ -303,6 +306,28 @@
     saveToLocalStorage();
     computeVisibleCandidateStatuses();
     renderAll();
+  }
+
+  function canUsePickerRemovedAction(date, shift) {
+    const isCurrentRemovedShift = Boolean(state.removedShift && state.removedShift.date === date);
+    return isCurrentRemovedShift || isExchangeableWorkedShift(shift);
+  }
+
+  function getRemovedActionLabel(date) {
+    if (state.removedShift && state.removedShift.date === date) {
+      return "Annuler le jour à enlever";
+    }
+
+    if (state.removedShift) {
+      return "Remplacer le jour à échanger";
+    }
+
+    return "Choisir comme jour à échanger";
+  }
+
+  function updatePickerRemovedActionButton(date, shift) {
+    selectRemovedButton.textContent = getRemovedActionLabel(date);
+    selectRemovedButton.disabled = !canUsePickerRemovedAction(date, shift);
   }
 
   function setExchangeMode(mode) {
@@ -618,7 +643,7 @@
     blockedRestCheckbox.checked = isBlockedRest;
     shiftTypeSelect.disabled = isBlockedRest;
     deleteShiftButton.disabled = !existingShift;
-    selectRemovedButton.disabled = !isExchangeableWorkedShift(existingShift);
+    updatePickerRemovedActionButton(date, existingShift);
     shiftPickerBackdrop.classList.remove("hidden");
 
     renderDayDetails(date);
@@ -739,6 +764,7 @@
     detailsEditButton.disabled = !date;
     detailsRemoveButton.disabled = !shift;
     detailsSelectRemovedButton.disabled = !isExchangeableWorkedShift(shift);
+    detailsSelectRemovedButton.textContent = date ? getRemovedActionLabel(date) : "Choisir comme jour à échanger";
     detailsToggleBlockedButton.disabled = !date || isAnnualLeave;
     detailsToggleBlockedButton.textContent = isBlocked ? "Débloquer le repos" : "Bloquer en repos";
   }
@@ -1016,6 +1042,14 @@
     helpModalBackdrop.classList.add("hidden");
   }
 
+  function openResetConfirmModal() {
+    resetConfirmBackdrop.classList.remove("hidden");
+  }
+
+  function closeResetConfirmModal() {
+    resetConfirmBackdrop.classList.add("hidden");
+  }
+
   async function copyRequestText() {
     const text = requestTextOutput.value;
     if (!text) {
@@ -1287,7 +1321,7 @@
     renderAll();
   });
 
-  resetButton.addEventListener("click", resetApplication);
+  resetButton.addEventListener("click", openResetConfirmModal);
   exportButton.addEventListener("click", () => {
     setSettingsPanelOpen(false);
     exportData();
@@ -1345,6 +1379,13 @@
     if (!state.pickerDate) {
       return;
     }
+
+    if (state.removedShift && state.removedShift.date === state.pickerDate) {
+      clearRemovedShift();
+      closeShiftTypePicker();
+      return;
+    }
+
     selectRemovedShift(state.pickerDate);
     closeShiftTypePicker();
   });
@@ -1391,6 +1432,16 @@
       closeHelpModal();
     }
   });
+  confirmResetButton.addEventListener("click", () => {
+    closeResetConfirmModal();
+    resetApplication();
+  });
+  cancelResetButton.addEventListener("click", closeResetConfirmModal);
+  resetConfirmBackdrop.addEventListener("click", (event) => {
+    if (event.target === resetConfirmBackdrop) {
+      closeResetConfirmModal();
+    }
+  });
 
   detailsEditButton.addEventListener("click", () => {
     if (!state.selectedDate) {
@@ -1431,6 +1482,9 @@
       }
       if (!helpModalBackdrop.classList.contains("hidden")) {
         closeHelpModal();
+      }
+      if (!resetConfirmBackdrop.classList.contains("hidden")) {
+        closeResetConfirmModal();
       }
       if (!settingsPanel.classList.contains("hidden")) {
         setSettingsPanelOpen(false);
