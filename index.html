@@ -27,10 +27,13 @@
           <button id="reset-button" type="button">Réinitialiser</button>
           <div class="settings-menu">
             <button id="settings-button" type="button" aria-expanded="false" aria-controls="settings-panel">Paramètres</button>
-            <div id="settings-panel" class="settings-panel hidden">
-              <button id="toggle-debug-button" type="button">Mode debug : OFF</button>
-              <button id="export-button" type="button">Exporter JSON</button>
-              <button id="import-button" type="button">Importer JSON</button>
+            <div id="settings-panel-backdrop" class="settings-panel-backdrop hidden">
+              <div id="settings-panel" class="settings-panel">
+                <h2 class="settings-panel-title">Paramètres</h2>
+                <button id="toggle-debug-button" type="button">Mode debug : OFF</button>
+                <button id="export-button" type="button">Exporter JSON</button>
+                <button id="import-button" type="button">Importer JSON</button>
+              </div>
             </div>
           </div>
           <input id="import-file-input" type="file" accept="application/json" hidden />

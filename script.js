@@ -65,6 +65,7 @@
   const requestExchangeButton = document.getElementById("request-exchange-button");
   const clearRemovedButton = document.getElementById("clear-removed-button");
   const settingsButton = document.getElementById("settings-button");
+  const settingsPanelBackdrop = document.getElementById("settings-panel-backdrop");
   const settingsPanel = document.getElementById("settings-panel");
   const toggleDebugButton = document.getElementById("toggle-debug-button");
   const resetButton = document.getElementById("reset-button");
@@ -163,7 +164,7 @@
   }
 
   function setSettingsPanelOpen(isOpen) {
-    settingsPanel.classList.toggle("hidden", !isOpen);
+    settingsPanelBackdrop.classList.toggle("hidden", !isOpen);
     settingsButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
   }
 
@@ -1307,11 +1308,17 @@
 
   settingsButton.addEventListener("click", (event) => {
     event.stopPropagation();
-    setSettingsPanelOpen(settingsPanel.classList.contains("hidden"));
+    setSettingsPanelOpen(settingsPanelBackdrop.classList.contains("hidden"));
   });
 
   settingsPanel.addEventListener("click", (event) => {
     event.stopPropagation();
+  });
+
+  settingsPanelBackdrop.addEventListener("click", (event) => {
+    if (event.target === settingsPanelBackdrop) {
+      setSettingsPanelOpen(false);
+    }
   });
 
   toggleDebugButton.addEventListener("click", () => {
@@ -1486,14 +1493,14 @@
       if (!resetConfirmBackdrop.classList.contains("hidden")) {
         closeResetConfirmModal();
       }
-      if (!settingsPanel.classList.contains("hidden")) {
+      if (!settingsPanelBackdrop.classList.contains("hidden")) {
         setSettingsPanelOpen(false);
       }
     }
   });
 
   document.addEventListener("click", () => {
-    if (!settingsPanel.classList.contains("hidden")) {
+    if (!settingsPanelBackdrop.classList.contains("hidden")) {
       setSettingsPanelOpen(false);
     }
   });

@@ -88,6 +88,10 @@ select:hover {
   position: relative;
 }
 
+.settings-panel-backdrop {
+  z-index: 20;
+}
+
 .settings-panel {
   position: absolute;
   top: calc(100% + 8px);
@@ -100,6 +104,12 @@ select:hover {
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-soft);
   z-index: 20;
+}
+
+.settings-panel-title {
+  display: none;
+  margin: 0;
+  font-size: 1.2rem;
 }
 
 .settings-panel button {
@@ -422,6 +432,10 @@ pre {
   display: none;
 }
 
+.settings-panel-backdrop.hidden {
+  display: none;
+}
+
 .settings-panel.hidden {
   display: none;
 }
@@ -600,18 +614,30 @@ pre {
     justify-content: center;
   }
 
-  .settings-panel {
+  .settings-panel-backdrop {
     position: fixed;
-    left: 12px;
-    right: 12px;
-    top: 50%;
-    min-width: 0;
-    width: auto;
-    max-width: none;
-    padding: 14px;
-    border-radius: 20px;
-    transform: translateY(-50%);
+    inset: 0;
+    display: flex;
+    align-items: end;
+    padding: 8px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    background: rgba(28, 35, 43, 0.35);
     z-index: 40;
+  }
+
+  .settings-panel {
+    position: static;
+    min-width: 0;
+    width: 100%;
+    max-height: min(92vh, 920px);
+    overflow-y: auto;
+    padding: 18px 14px 14px;
+    border-radius: 22px 22px 0 0;
+    transform: none;
+  }
+
+  .settings-panel-title {
+    display: block;
   }
 
   .settings-panel button {
