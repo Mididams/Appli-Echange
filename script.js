@@ -866,7 +866,9 @@
         summaryContainer.className = "day-mini-summary";
         miniSummary.forEach((item) => {
           const badge = document.createElement("span");
-          badge.className = `badge ${state.debugMode ? "debug" : ""}`;
+          badge.className = `badge ${item.allowed ? "badge-candidate-ok" : "badge-candidate-no"} ${
+            state.debugMode ? "debug" : ""
+          }`;
           badge.textContent = formatDayCellBadgeLabel(`${item.label}:${item.allowed ? "OK" : "NON"}`);
           summaryContainer.appendChild(badge);
         });

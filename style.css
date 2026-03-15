@@ -30,7 +30,6 @@ body {
   background:
     radial-gradient(circle at top left, #fffbf1 0, transparent 28%),
     linear-gradient(180deg, #f8f4ed 0%, var(--color-bg) 100%);
-  -webkit-text-size-adjust: 100%;
 }
 
 button,
@@ -332,6 +331,17 @@ select:hover {
 
 .day-mini-summary .badge {
   flex: 0 1 100%;
+}
+
+.day-mini-summary .badge-candidate-ok {
+  border-color: rgba(47, 125, 50, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(47, 125, 50, 0.16);
+  color: #214f24;
+  font-weight: 630;
+}
+
+.day-mini-summary .badge-candidate-no {
+  opacity: 0.92;
 }
 
 .day-badges .badge {
