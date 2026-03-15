@@ -758,16 +758,12 @@
   }
 
   function getDayDetailsShiftLabel(shiftType, result) {
-    const hasRollingLimitReason =
-      result && Array.isArray(result.reasonCodes) && result.reasonCodes.includes(ROLLING_LIMIT_REASON_CODE);
+    if (shiftType === "JOUR_7_19") {
+      return "Jour";
+    }
 
-    if (hasRollingLimitReason) {
-      if (shiftType === "JOUR_7_19") {
-        return "Jour";
-      }
-      if (shiftType === "NUIT_19_7") {
-        return "Nuit";
-      }
+    if (shiftType === "NUIT_19_7") {
+      return "Nuit";
     }
 
     return SHIFT_TYPE_LABELS[shiftType] || shiftType;
@@ -783,6 +779,14 @@
     }
 
     return true;
+  }
+
+  function shouldUseGenericWorkedDayDetails(shift) {
+    if (!shift) {
+      return false;
+    }
+
+    return isTrainingShift(shift) || ["JOUR_7_19", "JOUR_10_22", "JOUR_11_23", "NUIT_19_7"].includes(shift.shiftType);
   }
 
   function getMiniSummaryItems(date) {
@@ -1210,7 +1214,11 @@
 
     const lines = [];
     if (reasonCodes.includes("CANDIDATE_DATE_ALREADY_WORKED")) {
-      lines.push("Tu travailles déjà ce jour là !");
+      if (candidateShift && candidateShift.shiftType === "NUIT_19_7") {
+        lines.push("Tu travailles déjà cette nuit là !");
+      } else {
+        lines.push("Tu travailles déjà ce jour là !");
+      }
     }
     if (reasonCodes.includes("CANDIDATE_DATE_IS_REMOVED_DATE")) {
       lines.push("La date candidate est identique au poste retiré.");
@@ -1575,7 +1583,16 @@
     }
 
     const resultsForDate = availabilityEntry ? availabilityEntry.resultByShiftType : {};
-    EXCHANGE_SHIFT_TYPES.forEach((shiftType) => {
+    const useGenericWorkedDayDetails = shouldUseGenericWorkedDayDetails(shift);
+    let detailShiftTypes = EXCHANGE_SHIFT_TYPES;
+    if (shift && shift.shiftType === "NUIT_19_7") {
+      detailShiftTypes = ["NUIT_19_7"];
+    } else if (shift && ["JOUR_7_19", "JOUR_10_22", "JOUR_11_23"].includes(shift.shiftType)) {
+      detailShiftTypes = ["JOUR_7_19"];
+    } else if (isTrainingShift(shift)) {
+      detailShiftTypes = ["JOUR_7_19"];
+    }
+    detailShiftTypes.forEach((shiftType) => {
       if (!shouldDisplayShiftInDayDetails(shiftType)) {
         return;
       }
@@ -1591,9 +1608,15 @@
       const explanationLines = formatDetailedExplanation(result, { date, shiftType });
       const isBlockedByUser =
         Array.isArray(result.reasonCodes) && result.reasonCodes.includes("CANDIDATE_DATE_BLOCKED_BY_USER");
-      lines.push(
-        `<strong>${escapeHtml(getDayDetailsShiftLabel(shiftType, result))}\u00A0: <span class="${statusClass}">${escapeHtml(statusLabel)}</span></strong>`
-      );
+      const hasAlreadyWorkedReason =
+        Array.isArray(result.reasonCodes) && result.reasonCodes.includes("CANDIDATE_DATE_ALREADY_WORKED");
+      if (useGenericWorkedDayDetails && hasAlreadyWorkedReason) {
+        lines.push(`<strong><span class="${statusClass}">${escapeHtml("Impossible")}</span></strong>`);
+      } else {
+        lines.push(
+          `<strong>${escapeHtml(getDayDetailsShiftLabel(shiftType, result))}\u00A0: <span class="${statusClass}">${escapeHtml(statusLabel)}</span></strong>`
+        );
+      }
       lines.push(`<strong>Explication</strong>\u00A0: ${explanationLines[0]}`);
       explanationLines.slice(1).forEach((line) => {
         lines.push(line);
