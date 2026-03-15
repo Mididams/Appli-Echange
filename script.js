@@ -773,6 +773,18 @@
     return SHIFT_TYPE_LABELS[shiftType] || shiftType;
   }
 
+  function shouldDisplayShiftInDayDetails(shiftType) {
+    if (state.exchangeMode === "DAY") {
+      return shiftType !== "NUIT_19_7";
+    }
+
+    if (state.exchangeMode === "NIGHT") {
+      return shiftType === "NUIT_19_7";
+    }
+
+    return true;
+  }
+
   function getMiniSummaryItems(date) {
     const statusEntry = state.visibleStatuses ? state.visibleStatuses[date] : null;
     if (!state.removedShift || !statusEntry || getShiftByDate(date) || state.blockedRestDates.includes(date)) {
@@ -1530,6 +1542,10 @@
 
     const resultsForDate = availabilityEntry ? availabilityEntry.resultByShiftType : {};
     EXCHANGE_SHIFT_TYPES.forEach((shiftType) => {
+      if (!shouldDisplayShiftInDayDetails(shiftType)) {
+        return;
+      }
+
       const result = resultsForDate[shiftType];
       if (!result || shouldHideDetailedShiftResult(shiftType, result)) {
         return;
@@ -1545,6 +1561,9 @@
         `<strong>${escapeHtml(getDayDetailsShiftLabel(shiftType, result))}\u00A0: <span class="${statusClass}">${escapeHtml(statusLabel)}</span></strong>`
       );
       lines.push(`<strong>Explication</strong>\u00A0: ${explanationLines[0]}`);
+      explanationLines.slice(1).forEach((line) => {
+        lines.push(line);
+      });
 
       if (!isBlockedByUser) {
         if (result.rollingRule && Array.isArray(result.rollingRule.blockingWindows) && result.rollingRule.blockingWindows.length > 0) {
@@ -1555,10 +1574,6 @@
           });
         }
       }
-
-      explanationLines.slice(1).forEach((line) => {
-        lines.push(line);
-      });
 
       if (state.debugMode) {
         lines.push(`Debug - reasonCodes : ${escapeHtml(result.reasonCodes.join(", ") || "NONE")}`);
