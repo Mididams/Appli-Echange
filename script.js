@@ -1074,9 +1074,43 @@
     return `${String(date.getDate()).padStart(2, "0")}-${String(date.getMonth() + 1).padStart(2, "0")}-${date.getFullYear()}`;
   }
 
+  function formatDisplayDateShort(dateString) {
+    const date = parseDateString(dateString);
+    return `${String(date.getDate()).padStart(2, "0")}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  }
+
   function formatDisplayDateWithWeekday(dateString) {
     const formatted = DAY_DETAILS_DATE_FORMATTER.format(parseDateString(dateString));
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  }
+
+  function formatBlockingWindowRange(window) {
+    const startDate = parseDateString(window.startDate);
+    const endDate = parseDateString(window.endDate);
+    const shouldIncludeYear = startDate.getFullYear() !== endDate.getFullYear();
+    const startLabel = shouldIncludeYear ? formatDisplayDate(window.startDate) : formatDisplayDateShort(window.startDate);
+    const endLabel = shouldIncludeYear ? formatDisplayDate(window.endDate) : formatDisplayDateShort(window.endDate);
+    return `${startLabel} -> ${endLabel}`;
+  }
+
+  function formatBlockingWindowsSummary(blockingWindows) {
+    if (!Array.isArray(blockingWindows) || blockingWindows.length === 0) {
+      return [];
+    }
+
+    if (blockingWindows.length === 1) {
+      const window = blockingWindows[0];
+      return [
+        `Période bloquante\u00A0: ${formatDisplayDate(window.startDate)} -> ${formatDisplayDate(window.endDate)} (${window.workedDaysCount} jours travaillés)`,
+      ];
+    }
+
+    const ranges = blockingWindows.map((window) => formatBlockingWindowRange(window));
+    const workedDaysCount = blockingWindows[0].workedDaysCount;
+    const hasSameWorkedDaysCount = blockingWindows.every((window) => window.workedDaysCount === workedDaysCount);
+    const suffix = hasSameWorkedDaysCount ? ` (${workedDaysCount} jours travaillés)` : "";
+
+    return [`Périodes bloquantes${suffix}\u00A0:`, ...ranges];
   }
 
   function formatRequestDate(dateString) {
@@ -1567,10 +1601,8 @@
 
       if (!isBlockedByUser) {
         if (result.rollingRule && Array.isArray(result.rollingRule.blockingWindows) && result.rollingRule.blockingWindows.length > 0) {
-          result.rollingRule.blockingWindows.forEach((window) => {
-            lines.push(
-              `Période bloquante\u00A0: ${escapeHtml(formatDisplayDate(window.startDate))} -> ${escapeHtml(formatDisplayDate(window.endDate))} (${escapeHtml(window.workedDaysCount)} jours travaillés)`
-            );
+          formatBlockingWindowsSummary(result.rollingRule.blockingWindows).forEach((line) => {
+            lines.push(escapeHtml(line));
           });
         }
       }
