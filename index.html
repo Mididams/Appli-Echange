@@ -51,7 +51,7 @@
             </div>
             <p>
               1. Importe ton planning depuis <strong>"Paramètres"</strong>. <span class="desktop-only">2. Double-clique sur un jour pour
-              l'éditer rapidement ou utilise les actions du panneau de droite.</span><span class="mobile-only">2. Double-clique ou laisse appuyé sur un jour pour l'éditer rapidement.</span><br />3. Choisis le jour à échanger.
+              l'éditer rapidement ou utilise les actions du panneau de droite.</span><span class="mobile-only">2. Double-clique ou laisse appuyé sur un jour pour l'éditer rapidement.</span><br />3. Choisis le jour à échanger, ou active <strong>HSP</strong> dans les détails du jour pour voir les jours où ajouter un poste.
               4. Les disponibilités apparaissent automatiquement. <span class="desktop-only">5. Clique sur un jour pour consulter les
               détails dans le panneau de droite.</span><span class="mobile-only">5. Clique sur un jour pour consulter les détails dans le panneau des détails du jour sous le calendrier.</span>
             </p>
@@ -81,6 +81,7 @@
               <button id="details-edit-button" type="button">Ajouter / modifier</button>
               <button id="details-remove-button" type="button">Supprimer</button>
               <button id="details-select-removed-button" type="button">Choisir comme jour à échanger</button>
+              <button id="details-hsp-button" type="button">HSP</button>
               <button id="details-toggle-blocked-button" type="button">Bloquer en repos</button>
             </div>
             <pre id="day-details-output">Clique sur un jour pour afficher ses détails.</pre>
@@ -106,11 +107,38 @@
           </button>
         </div>
 
+        <div class="modal-section">
+          <label class="checkbox-label picker-checkbox-label">
+            <input id="free-note-checkbox" type="checkbox" />
+            Ajouter du texte libre
+          </label>
+          <button id="edit-free-note-button" type="button" class="picker-secondary-button" disabled>Saisir / modifier le texte</button>
+        </div>
+
         <div class="modal-actions">
           <button id="save-shift-button" type="button">Enregistrer</button>
           <button id="delete-shift-button" type="button">Supprimer le poste</button>
           <button id="select-removed-button" type="button">Choisir comme jour à échanger</button>
           <button id="close-picker-button" type="button">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="free-note-modal-backdrop" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <h2>Texte libre</h2>
+        <p id="free-note-date-label"></p>
+        <p class="modal-help">Entre un texte court pour qu'il reste lisible dans la case du calendrier.</p>
+
+        <div class="modal-section">
+          <label for="free-note-input">Texte</label>
+          <input id="free-note-input" type="text" maxlength="28" placeholder="Ex. Dentiste 13h" />
+        </div>
+
+        <div class="modal-actions">
+          <button id="save-free-note-button" type="button">Enregistrer le texte</button>
+          <button id="remove-free-note-button" type="button">Supprimer le texte</button>
+          <button id="close-free-note-button" type="button">Fermer</button>
         </div>
       </div>
     </div>
@@ -191,10 +219,12 @@
           <p>Les jours <strong>CA</strong> et <strong>FO</strong> ne sont pas échangeables. <strong>FO</strong> vaut <strong>9h-17h</strong>, <strong>CA</strong> vaut <strong>7h-19h</strong>.</p>
           <p>Les jours et nuit travaillés ainsi que les <strong>FO</strong> apparaissent en bleu hachurés. Les repos bloqués et <strong>CA</strong> en rouge (rose).</p>
           <p>Tu peux supprimer un jour entré en double-cliquant dessus, ou sur mobile avec un double tap ou un appui long, puis <strong>"Supprimer le poste"</strong>.</p>
+          <p>Dans la fenêtre <strong>"Ajouter / modifier"</strong>, tu peux aussi cocher <strong>"Ajouter du texte libre"</strong> pour noter un rendez-vous perso court, même sur un jour laissé libre ou bloqué en repos.</p>
           <p>Les données ne sont pas synchronisées entre l'ordinateur et le téléphone. Elles sont sauvegardées dans le navigateur donc si tu le nettoies (ccleaner ou autre), si tu changes d'ordinateur ou de navigateur, ou si tu cliques sur <strong>"Réinitialiser"</strong>, les données seront perdues.</p>
           <p>Tu peux créer une sauvegarde via <strong>"Paramètres / Exporter JSON"</strong>. Cela crée un fichier de sauvegarde que tu peux enregistrer pour l'importer ensuite dans un autre navigateur ou ton téléphone.</p>
           <p>Tout en haut, tu peux choisir le mode de recherche en fonction de ce que tu préfères échanger : <strong>Jour et nuit</strong>, <strong>que jour</strong>, <strong>que nuit</strong>.</p>
           <p>Ensuite double-clic sur le jour que tu veux échanger, ou sur mobile fais un double tap ou un appui long, puis coche <strong>"choisir comme jour à échanger"</strong>.</p>
+          <p>Si tu veux chercher des jours pour faire des heures supplémentaires sans retirer de poste, clique sur une date puis sur <strong>"HSP"</strong> dans <strong>"Détails du jour"</strong>. L'appli te montre alors les jours où tu peux ajouter un poste en respectant les 12h de repos et la règle des 4 jours sur 7.</p>
           <p>L'appli te propose :</p>
           <p><strong>En vert :</strong> échange possible sur TOUS les horaires.<br /><strong>En jaune :</strong> échange possible sur des horaires de jour (Vérifie les 10-22 / 11-23).<br /><strong>En bleu :</strong> échange possible seulement en nuit.<br /><strong>En rouge :</strong> les jours impossibles à échanger.</p>
           <p>Tu peux cliquer sur un jour pour avoir plus d'informations dans la partie <strong>"Détails du jour"</strong> en bas à droite.</p>

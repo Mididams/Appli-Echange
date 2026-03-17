@@ -28,6 +28,10 @@
     DAY: "Jour\u00A0uniquement",
     NIGHT: "Nuit\u00A0uniquement",
   };
+  const SEARCH_VIEW_LABELS = {
+    EXCHANGE: "Echange",
+    HSP: "Heures supplementaires",
+  };
   const ROLLING_LIMIT_REASON_CODE = "TOO_MANY_WORKED_DAYS_IN_7";
   const MONTH_FORMATTER = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" });
   const REQUEST_DATE_FORMATTER = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" });
@@ -73,7 +77,9 @@
     schedule: [],
     removedShift: null,
     exchangeMode: "ANY",
+    searchView: "EXCHANGE",
     blockedRestDates: [],
+    dayNotes: {},
     visibleMonthStart: getMonthStart(new Date()),
     selectedDate: null,
     selectedDateStatus: null,
@@ -112,13 +118,22 @@
   const shiftPickerHelp = document.getElementById("shift-picker-help");
   const shiftTypeSelect = document.getElementById("shift-type-select");
   const blockedRestToggleButton = document.getElementById("blocked-rest-toggle-button");
+  const freeNoteCheckbox = document.getElementById("free-note-checkbox");
+  const editFreeNoteButton = document.getElementById("edit-free-note-button");
   const saveShiftButton = document.getElementById("save-shift-button");
   const deleteShiftButton = document.getElementById("delete-shift-button");
   const selectRemovedButton = document.getElementById("select-removed-button");
   const closePickerButton = document.getElementById("close-picker-button");
+  const freeNoteModalBackdrop = document.getElementById("free-note-modal-backdrop");
+  const freeNoteDateLabel = document.getElementById("free-note-date-label");
+  const freeNoteInput = document.getElementById("free-note-input");
+  const saveFreeNoteButton = document.getElementById("save-free-note-button");
+  const removeFreeNoteButton = document.getElementById("remove-free-note-button");
+  const closeFreeNoteButton = document.getElementById("close-free-note-button");
   const detailsEditButton = document.getElementById("details-edit-button");
   const detailsRemoveButton = document.getElementById("details-remove-button");
   const detailsSelectRemovedButton = document.getElementById("details-select-removed-button");
+  const detailsHspButton = document.getElementById("details-hsp-button");
   const detailsToggleBlockedButton = document.getElementById("details-toggle-blocked-button");
   const exchangeModeInputs = document.querySelectorAll("input[name='exchange-mode']");
   const requestModalBackdrop = document.getElementById("request-modal-backdrop");
@@ -216,6 +231,10 @@
     return engine.parseLocalDate(dateString);
   }
 
+  function getTodayDateString() {
+    return formatDateString(new Date());
+  }
+
   function addDays(dateString, days) {
     return engine.addDays(dateString, days);
   }
@@ -227,6 +246,26 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  }
+
+  function normalizeFreeNote(value) {
+    return String(value || "").replace(/\s+/g, " ").trim().slice(0, 28);
+  }
+
+  function limitFreeNoteLength(value) {
+    return String(value || "").slice(0, 28);
+  }
+
+  function sanitizeDayNotes(dayNotes) {
+    if (!dayNotes || typeof dayNotes !== "object") {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(dayNotes)
+        .map(([date, note]) => [date, normalizeFreeNote(note)])
+        .filter(([date, note]) => /^\d{4}-\d{2}-\d{2}$/.test(date) && note)
+    );
   }
 
   function stripDiacritics(value) {
@@ -528,6 +567,35 @@
     state.blockedRestDates = state.blockedRestDates.filter((date) => date !== dateString);
   }
 
+  function getDayNote(dateString) {
+    return state.dayNotes[dateString] || "";
+  }
+
+  function updateFreeNoteControls(dateString) {
+    const note = dateString ? getDayNote(dateString) : "";
+    freeNoteCheckbox.checked = Boolean(note);
+    editFreeNoteButton.disabled = !dateString;
+    editFreeNoteButton.textContent = note ? "Modifier le texte" : "Saisir / modifier le texte";
+  }
+
+  function setDayNote(dateString, noteText) {
+    const normalizedNote = normalizeFreeNote(noteText);
+    if (normalizedNote) {
+      state.dayNotes = {
+        ...state.dayNotes,
+        [dateString]: normalizedNote,
+      };
+    } else {
+      const nextDayNotes = { ...state.dayNotes };
+      delete nextDayNotes[dateString];
+      state.dayNotes = nextDayNotes;
+    }
+
+    updateFreeNoteControls(state.pickerDate);
+    saveToLocalStorage();
+    renderAll();
+  }
+
   function saveWorkedShift(date, shiftType) {
     const nextSchedule = state.schedule.filter((shift) => shift.date !== date);
     nextSchedule.push({ date, shiftType });
@@ -579,6 +647,7 @@
     }
 
     state.removedShift = { ...shift };
+    state.searchView = "EXCHANGE";
     state.selectedDate = date;
     saveToLocalStorage();
     renderAll();
@@ -586,6 +655,7 @@
 
   function clearRemovedShift() {
     state.removedShift = null;
+    state.searchView = "EXCHANGE";
     saveToLocalStorage();
     renderAll();
   }
@@ -608,12 +678,34 @@
   }
 
   function updatePickerRemovedActionButton(date, shift) {
+    if (isHspViewActive()) {
+      selectRemovedButton.textContent = "Jour à échanger indisponible en HSP";
+      selectRemovedButton.disabled = true;
+      return;
+    }
+
     selectRemovedButton.textContent = getRemovedActionLabel(date);
     selectRemovedButton.disabled = !canUsePickerRemovedAction(date, shift);
   }
 
   function setExchangeMode(mode) {
     state.exchangeMode = mode;
+    saveToLocalStorage();
+    renderAll();
+  }
+
+  function isHspViewActive() {
+    return state.searchView === "HSP";
+  }
+
+  function toggleHspView() {
+    const nextIsHspView = !isHspViewActive();
+    state.searchView = nextIsHspView ? "HSP" : "EXCHANGE";
+    if (nextIsHspView) {
+      state.removedShift = null;
+    }
+    detailsHspButton.textContent = isHspViewActive() ? "Quitter HSP" : "HSP";
+    detailsHspButton.classList.toggle("is-active", isHspViewActive());
     saveToLocalStorage();
     renderAll();
   }
@@ -651,7 +743,7 @@
     const options = { blockedRestDates: state.blockedRestDates };
 
     getVisibleDateStrings().forEach((dateString) => {
-      if (!state.removedShift) {
+      if (!state.removedShift && !isHspViewActive()) {
         statuses[dateString] = {
           status: "NONE",
           availability: null,
@@ -660,7 +752,9 @@
         return;
       }
 
-      const availability = engine.getCandidateAvailabilityType(state.schedule, state.removedShift, dateString, options);
+      const availability = isHspViewActive()
+        ? engine.getExtraShiftAvailabilityType(state.schedule, dateString, options)
+        : engine.getCandidateAvailabilityType(state.schedule, state.removedShift, dateString, options);
       const resultEntries = availability && availability.details
         ? [...(availability.details.dayResults || []), ...(availability.details.nightResults || [])]
         : [];
@@ -699,7 +793,7 @@
     if (isBlockedRest) {
       return "blocked-rest";
     }
-    if (!state.removedShift) {
+    if (!state.removedShift && !isHspViewActive()) {
       return "empty";
     }
     if (availabilityStatus === "DAY_ONLY") {
@@ -728,6 +822,10 @@
     }
     if (state.blockedRestDates.includes(date)) {
       badges.push("Repos bloqué");
+    }
+    const freeNote = getDayNote(date);
+    if (freeNote) {
+      badges.push(freeNote);
     }
     return badges;
   }
@@ -791,7 +889,7 @@
 
   function getMiniSummaryItems(date) {
     const statusEntry = state.visibleStatuses ? state.visibleStatuses[date] : null;
-    if (!state.removedShift || !statusEntry || getShiftByDate(date) || state.blockedRestDates.includes(date)) {
+    if ((!state.removedShift && !isHspViewActive()) || !statusEntry || getShiftByDate(date) || state.blockedRestDates.includes(date)) {
       return [];
     }
 
@@ -841,12 +939,18 @@
       button.type = "button";
       button.className = `day-cell state-${cellState}`;
       button.dataset.date = dateString;
+      if (dateString === getTodayDateString()) {
+        button.classList.add("today");
+      }
       if (state.selectedDate === dateString) {
         button.classList.add("selected-detail");
       }
 
       const number = document.createElement("div");
       number.className = "day-number";
+      if (dateString === getTodayDateString()) {
+        number.classList.add("today");
+      }
       number.textContent = String(parseDateString(dateString).getDate());
       button.appendChild(number);
 
@@ -956,6 +1060,7 @@
       : "Choisis un horaire pour marquer ce jour comme travaille, ou utilise le bouton de repos bloque si tu ne veux pas travailler ce jour.";
     shiftTypeSelect.value = existingShift ? existingShift.shiftType : getPreferredPickerShiftType();
     updateBlockedRestToggleButton(isBlockedRest);
+    updateFreeNoteControls(date);
     deleteShiftButton.disabled = !existingShift;
     updatePickerRemovedActionButton(date, existingShift);
     shiftPickerBackdrop.classList.remove("hidden");
@@ -966,6 +1071,25 @@
   function closeShiftTypePicker() {
     shiftPickerBackdrop.classList.add("hidden");
     state.pickerDate = null;
+  }
+
+  function openFreeNoteModal(date) {
+    if (!date) {
+      return;
+    }
+
+    freeNoteDateLabel.textContent = formatDisplayDate(date);
+    freeNoteInput.value = getDayNote(date);
+    removeFreeNoteButton.disabled = !getDayNote(date);
+    freeNoteModalBackdrop.classList.remove("hidden");
+    window.setTimeout(() => {
+      freeNoteInput.focus();
+      freeNoteInput.select();
+    }, 0);
+  }
+
+  function closeFreeNoteModal() {
+    freeNoteModalBackdrop.classList.add("hidden");
   }
 
   function handleDayClick(date) {
@@ -994,12 +1118,12 @@
   }
 
   function getVisiblePossibleDayCount() {
-    if (!state.removedShift || !state.visibleStatuses) {
+    if ((!state.removedShift && !isHspViewActive()) || !state.visibleStatuses) {
       return 0;
     }
 
     return getVisibleDateStrings().filter((date) => {
-      if (getShiftByDate(date) || date === state.removedShift.date || state.blockedRestDates.includes(date)) {
+      if (getShiftByDate(date) || (state.removedShift && date === state.removedShift.date) || state.blockedRestDates.includes(date)) {
         return false;
       }
       const entry = state.visibleStatuses[date];
@@ -1015,6 +1139,7 @@
         "Jour à enlever",
         state.removedShift ? `${formatDisplayDate(state.removedShift.date)} - ${SHIFT_TYPE_LABELS[state.removedShift.shiftType]}` : "Aucun",
       ],
+      ["Vue active", SEARCH_VIEW_LABELS[state.searchView] || SEARCH_VIEW_LABELS.EXCHANGE],
       ["Mode de recherche", EXCHANGE_MODE_LABELS[state.exchangeMode]],
       ["Jours possibles visibles", String(getVisiblePossibleDayCount())],
       ["Repos bloqués", String(state.blockedRestDates.length)],
@@ -1037,11 +1162,19 @@
     const shift = date ? getShiftByDate(date) : null;
     const isBlocked = date ? state.blockedRestDates.includes(date) : false;
     const isAnnualLeave = isAnnualLeaveShift(shift);
+    const isHspView = isHspViewActive();
 
     detailsEditButton.disabled = !date;
     detailsRemoveButton.disabled = !shift;
-    detailsSelectRemovedButton.disabled = !isExchangeableWorkedShift(shift);
-    detailsSelectRemovedButton.textContent = date ? getRemovedActionLabel(date) : "Choisir comme jour à échanger";
+    detailsSelectRemovedButton.disabled = isHspView || !isExchangeableWorkedShift(shift);
+    detailsSelectRemovedButton.textContent = isHspView
+      ? "Jour à échanger indisponible en HSP"
+      : date
+        ? getRemovedActionLabel(date)
+        : "Choisir comme jour à échanger";
+    detailsHspButton.disabled = !date;
+    detailsHspButton.textContent = isHspViewActive() ? "Quitter HSP" : "HSP";
+    detailsHspButton.classList.toggle("is-active", isHspViewActive());
     detailsToggleBlockedButton.disabled = !date || isAnnualLeave;
     detailsToggleBlockedButton.textContent = isBlocked ? "Débloquer le repos" : "Bloquer en repos";
   }
@@ -1221,6 +1354,8 @@
       } else {
         lines.push("Tu travailles déjà ce jour là !");
       }
+
+      return lines.map((line) => escapeHtml(line));
     }
     if (reasonCodes.includes("CANDIDATE_DATE_IS_REMOVED_DATE")) {
       lines.push("La date candidate est identique au poste retiré.");
@@ -1389,7 +1524,7 @@
   }
 
   function canOpenExchangeRequest() {
-    return Boolean(state.removedShift) && getExchangeRequestCandidates().length > 0;
+    return !isHspViewActive() && Boolean(state.removedShift) && getExchangeRequestCandidates().length > 0;
   }
 
   function getRequestRangeValues() {
@@ -1559,7 +1694,12 @@
       }
     }
 
-    if (!state.removedShift) {
+    const freeNote = getDayNote(date);
+    if (freeNote) {
+      lines.push(`Texte libre\u00A0: ${escapeHtml(freeNote)}`);
+    }
+
+    if (!state.removedShift && !isHspViewActive()) {
       lines.push("");
       lines.push(escapeHtml("Sélectionne d'abord un jour à enlever pour calculer les disponibilités."));
       dayDetailsOutput.innerHTML = lines.join("\n");
@@ -1569,6 +1709,7 @@
     const availabilityEntry = state.visibleStatuses ? state.visibleStatuses[date] : null;
     const availability = availabilityEntry ? availabilityEntry.availability : null;
     lines.push("");
+    lines.push(`Vue active\u00A0: ${escapeHtml(SEARCH_VIEW_LABELS[state.searchView] || SEARCH_VIEW_LABELS.EXCHANGE)}`);
     lines.push(`Mode actif\u00A0: ${escapeHtml(EXCHANGE_MODE_LABELS[state.exchangeMode])}`);
 
     if (availability) {
@@ -1648,7 +1789,9 @@
       schedule: state.schedule,
       removedShift: state.removedShift,
       exchangeMode: state.exchangeMode,
+      searchView: state.searchView,
       blockedRestDates: state.blockedRestDates,
+      dayNotes: state.dayNotes,
       visibleMonthStart: formatDateString(state.visibleMonthStart),
       selectedDate: state.selectedDate,
       debugMode: state.debugMode,
@@ -1669,7 +1812,9 @@
       state.schedule = Array.isArray(parsed.schedule) ? engine.sortSchedule(parsed.schedule) : [];
       state.removedShift = isExchangeableWorkedShift(parsed.removedShift) ? parsed.removedShift : null;
       state.exchangeMode = parsed.exchangeMode || "ANY";
+      state.searchView = parsed.searchView === "HSP" ? "HSP" : "EXCHANGE";
       state.blockedRestDates = Array.isArray(parsed.blockedRestDates) ? parsed.blockedRestDates : [];
+      state.dayNotes = sanitizeDayNotes(parsed.dayNotes);
       state.visibleMonthStart = parsed.visibleMonthStart ? parseDateString(parsed.visibleMonthStart) : getMonthStart(new Date());
       state.selectedDate = parsed.selectedDate || null;
       state.debugMode = Boolean(parsed.debugMode);
@@ -1688,7 +1833,9 @@
       schedule: state.schedule,
       removedShift: state.removedShift,
       exchangeMode: state.exchangeMode,
+      searchView: state.searchView,
       blockedRestDates: state.blockedRestDates,
+      dayNotes: state.dayNotes,
       visibleMonthStart: formatDateString(state.visibleMonthStart),
       debugMode: state.debugMode,
       lastSelectedShiftType: state.lastSelectedShiftType,
@@ -1711,7 +1858,9 @@
     state.schedule = Array.isArray(payload.schedule) ? engine.sortSchedule(payload.schedule) : [];
     state.removedShift = isExchangeableWorkedShift(payload.removedShift) ? payload.removedShift : null;
     state.exchangeMode = payload.exchangeMode || "ANY";
+    state.searchView = payload.searchView === "HSP" ? "HSP" : "EXCHANGE";
     state.blockedRestDates = Array.isArray(payload.blockedRestDates) ? payload.blockedRestDates : [];
+    state.dayNotes = sanitizeDayNotes(payload.dayNotes);
     state.visibleMonthStart = payload.visibleMonthStart ? parseDateString(payload.visibleMonthStart) : getMonthStart(new Date());
     state.selectedDate = null;
     state.debugMode = Boolean(payload.debugMode);
@@ -1728,7 +1877,9 @@
     state.schedule = [];
     state.removedShift = null;
     state.exchangeMode = "ANY";
+    state.searchView = "EXCHANGE";
     state.blockedRestDates = [];
+    state.dayNotes = {};
     state.selectedDate = null;
     state.debugMode = false;
     state.lastSelectedShiftType = "JOUR_7_19";
@@ -1897,7 +2048,33 @@
   });
 
   blockedRestToggleButton.addEventListener("click", () => {
-    updateBlockedRestToggleButton(!isPickerBlockedRestActive());
+    if (!state.pickerDate) {
+      return;
+    }
+
+    const nextBlockedState = !isPickerBlockedRestActive();
+    toggleBlockedRest(state.pickerDate, nextBlockedState);
+    closeShiftTypePicker();
+  });
+
+  freeNoteCheckbox.addEventListener("change", () => {
+    if (!state.pickerDate) {
+      return;
+    }
+
+    if (freeNoteCheckbox.checked) {
+      openFreeNoteModal(state.pickerDate);
+      return;
+    }
+
+    setDayNote(state.pickerDate, "");
+  });
+
+  editFreeNoteButton.addEventListener("click", () => {
+    if (!state.pickerDate) {
+      return;
+    }
+    openFreeNoteModal(state.pickerDate);
   });
 
   closePickerButton.addEventListener("click", closeShiftTypePicker);
@@ -1984,6 +2161,13 @@
     selectRemovedShift(state.selectedDate);
   });
 
+  detailsHspButton.addEventListener("click", () => {
+    if (!state.selectedDate) {
+      return;
+    }
+    toggleHspView();
+  });
+
   detailsToggleBlockedButton.addEventListener("click", () => {
     if (!state.selectedDate) {
       return;
@@ -1992,10 +2176,51 @@
     toggleBlockedRest(state.selectedDate, !isBlocked);
   });
 
+  saveFreeNoteButton.addEventListener("click", () => {
+    if (!state.pickerDate) {
+      return;
+    }
+
+    setDayNote(state.pickerDate, freeNoteInput.value);
+    closeFreeNoteModal();
+  });
+
+  removeFreeNoteButton.addEventListener("click", () => {
+    if (!state.pickerDate) {
+      return;
+    }
+
+    setDayNote(state.pickerDate, "");
+    closeFreeNoteModal();
+  });
+
+  closeFreeNoteButton.addEventListener("click", () => {
+    updateFreeNoteControls(state.pickerDate);
+    closeFreeNoteModal();
+  });
+
+  freeNoteModalBackdrop.addEventListener("click", (event) => {
+    if (event.target === freeNoteModalBackdrop) {
+      updateFreeNoteControls(state.pickerDate);
+      closeFreeNoteModal();
+    }
+  });
+
+  freeNoteInput.addEventListener("input", () => {
+    const limitedValue = limitFreeNoteLength(freeNoteInput.value);
+    if (freeNoteInput.value !== limitedValue) {
+      freeNoteInput.value = limitedValue;
+    }
+  });
+
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       if (!shiftPickerBackdrop.classList.contains("hidden")) {
         closeShiftTypePicker();
+      }
+      if (!freeNoteModalBackdrop.classList.contains("hidden")) {
+        updateFreeNoteControls(state.pickerDate);
+        closeFreeNoteModal();
       }
       if (!requestModalBackdrop.classList.contains("hidden")) {
         closeRequestModal();
@@ -2040,6 +2265,7 @@
     selectRemovedShift,
     clearRemovedShift,
     setExchangeMode,
+    toggleHspView,
     computeVisibleCandidateStatuses,
     renderDayDetails,
     renderLegend,

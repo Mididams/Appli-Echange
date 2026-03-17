@@ -790,6 +790,42 @@ function isExchangeAllowed(schedule, removedShift, candidateShift, options = {})
   };
 }
 
+function isExtraShiftAllowed(schedule, candidateShift, options = {}) {
+  const scheduleValidation = validateScheduleInput(schedule);
+  const candidateShiftValidation = validateShiftInput(candidateShift, "candidateShift");
+  const reasonCodes = [
+    ...scheduleValidation.reasonCodes,
+    ...candidateShiftValidation.reasonCodes,
+  ];
+  const normalizedOptions = normalizeValidationOptions(options);
+
+  if (scheduleValidation.valid && candidateShiftValidation.valid && schedule.some((shift) => isWorkedShift(shift) && shift.date === candidateShift.date)) {
+    reasonCodes.push(REASON_CODES.CANDIDATE_DATE_ALREADY_WORKED);
+  }
+
+  const blockedRestRule = checkUserBlockedRestRule(candidateShift, normalizedOptions);
+  reasonCodes.push(...blockedRestRule.reasonCodes);
+
+  const simulatedSchedule = scheduleValidation.valid && candidateShiftValidation.valid
+    ? sortSchedule([...schedule.map(cloneShift), cloneShift(candidateShift)])
+    : Array.isArray(schedule) ? sortSchedule(schedule) : [];
+  const baselineValidation = validateSchedule(scheduleValidation.valid ? schedule : []);
+  const simulatedValidation = validateSchedule(simulatedSchedule);
+  const validation = getEffectiveValidationResult(baselineValidation, simulatedValidation);
+
+  return {
+    allowed: reasonCodes.length === 0 && scheduleValidation.valid && candidateShiftValidation.valid && validation.valid,
+    simulatedSchedule,
+    reasonCodes: [...new Set([...reasonCodes, ...validation.reasonCodes])],
+    rollingRule: validation.rollingRule || { valid: false, blockingWindows: [], reasonCodes: [] },
+    restRule: validation.restRule || { valid: false, conflicts: [], reasonCodes: [] },
+    compatibilityRule: validation.compatibilityRule || { valid: false, conflicts: [], reasonCodes: [] },
+    structuralRule: validation.structuralRule || { valid: false, reasonCodes: [] },
+    blockedRestRule,
+    blockedRestDates: normalizedOptions.blockedRestDates,
+  };
+}
+
 function getAvailabilityType(dayAllowed, nightAllowed) {
   if (dayAllowed && nightAllowed) {
     return "BOTH";
@@ -831,6 +867,60 @@ function getCandidateAvailabilityType(schedule, removedShift, candidateDate, opt
   const nightResults = NIGHT_SHIFT_TYPES.map((shiftType) => {
     const candidateShift = { date: candidateDate, shiftType };
     const result = isExchangeAllowed(schedule, removedShift, candidateShift, normalizedOptions);
+    return { shiftType, result };
+  });
+
+  const allowedDayShiftTypes = dayResults.filter((entry) => entry.result.allowed).map((entry) => entry.shiftType);
+  const allowedNightShiftTypes = nightResults.filter((entry) => entry.result.allowed).map((entry) => entry.shiftType);
+
+  return {
+    candidateDate,
+    dayAllowed: allowedDayShiftTypes.length > 0,
+    allowedDayShiftTypes,
+    nightAllowed: allowedNightShiftTypes.length > 0,
+    allowedNightShiftTypes,
+    availabilityType: getAvailabilityType(allowedDayShiftTypes.length > 0, allowedNightShiftTypes.length > 0),
+    blockedByUser: isBlockedRestDate(candidateDate, normalizedOptions),
+    reasonCodes: [
+      ...new Set(
+        [...dayResults, ...nightResults].flatMap((entry) => entry.result.reasonCodes)
+      ),
+    ],
+    details: {
+      dayResults,
+      nightResults,
+    },
+  };
+}
+
+function getExtraShiftAvailabilityType(schedule, candidateDate, options = {}) {
+  const normalizedOptions = normalizeValidationOptions(options);
+  if (!isValidDateString(candidateDate)) {
+    return {
+      candidateDate,
+      dayAllowed: false,
+      allowedDayShiftTypes: [],
+      nightAllowed: false,
+      allowedNightShiftTypes: [],
+      availabilityType: "NONE",
+      blockedByUser: false,
+      reasonCodes: [REASON_CODES.INVALID_SHIFT],
+      details: {
+        dayResults: [],
+        nightResults: [],
+      },
+    };
+  }
+
+  const dayResults = DAY_SHIFT_TYPES.map((shiftType) => {
+    const candidateShift = { date: candidateDate, shiftType };
+    const result = isExtraShiftAllowed(schedule, candidateShift, normalizedOptions);
+    return { shiftType, result };
+  });
+
+  const nightResults = NIGHT_SHIFT_TYPES.map((shiftType) => {
+    const candidateShift = { date: candidateDate, shiftType };
+    const result = isExtraShiftAllowed(schedule, candidateShift, normalizedOptions);
     return { shiftType, result };
   });
 
@@ -1197,7 +1287,9 @@ const exportedApi = {
   isBlockedRestDate,
   checkUserBlockedRestRule,
   isExchangeAllowed,
+  isExtraShiftAllowed,
   getCandidateAvailabilityType,
+  getExtraShiftAvailabilityType,
   getCalendarDayVisualState,
   explainValidationResult,
   EXAMPLE_SCHEDULES,
