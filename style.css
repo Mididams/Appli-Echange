@@ -188,13 +188,16 @@ select:hover {
   font-size: 14px;
 }
 
-.mobile-toolbar-button {
-  display: none;
-}
-
 .calendar-container {
   display: grid;
   gap: 16px;
+}
+
+.details-actions-panel {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  background: #fffdf8;
 }
 
 .month-card {
@@ -685,12 +688,6 @@ pre {
     width: calc(50% - 5px);
   }
 
-  .mobile-toolbar-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
   .settings-menu > button {
     width: 100%;
     display: flex;
@@ -730,10 +727,6 @@ pre {
   }
 
   .request-shortcuts {
-    display: none;
-  }
-
-  .details-actions {
     display: none;
   }
 

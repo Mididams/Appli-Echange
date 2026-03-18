@@ -22,9 +22,6 @@
         </div>
 
         <div class="toolbar-group">
-          <button id="clear-removed-button" type="button">Annuler échange / HSP</button>
-          <button id="mobile-hsp-button" class="mobile-toolbar-button" type="button" disabled>HSP</button>
-          <button id="request-exchange-button" type="button" disabled>Demander</button>
           <button id="reset-button" type="button">Réinitialiser</button>
           <div class="settings-menu">
             <button id="settings-button" type="button" aria-expanded="false" aria-controls="settings-panel">Paramètres</button>
@@ -52,15 +49,27 @@
             </div>
             <p>
               1. Importe ton planning depuis <strong>"Paramètres"</strong>. <span class="desktop-only">2. Double-clique sur un jour pour
-              l'éditer rapidement ou utilise les actions du panneau de droite.</span><span class="mobile-only">2. Double-clique ou laisse appuyé sur un jour pour l'éditer rapidement.</span><br />3. Choisis le jour à échanger, <span class="desktop-only">ou active <strong>HSP</strong> dans les détails du jour pour voir les jours où ajouter un poste.</span><span class="mobile-only">ou clique sur <strong>HSP</strong> pour voir les jours disponibles.</span>
+              l'éditer rapidement ou utilise les actions au-dessus du calendrier.</span><span class="mobile-only">2. Double-clique ou laisse appuyé sur un jour pour l'éditer rapidement.</span><br />3. Choisis le jour à échanger, <span class="desktop-only">ou active <strong>HSP</strong> avec les actions au-dessus du calendrier pour voir les jours où ajouter un poste.</span><span class="mobile-only">ou clique sur <strong>HSP</strong> dans les actions au-dessus du calendrier pour voir les jours disponibles.</span>
               4. Les disponibilités apparaissent automatiquement. <span class="desktop-only">5. Clique sur un jour pour consulter les
-              détails dans le panneau de droite.</span><span class="mobile-only">5. Clique sur un jour pour consulter les détails dans le panneau des détails du jour sous le calendrier.</span>
+              détails dans le panneau de droite puis utilise les actions au-dessus du calendrier si besoin.</span><span class="mobile-only">5. Clique sur un jour pour consulter les détails dans le panneau des détails du jour sous le calendrier, puis utilise les actions au-dessus du calendrier si besoin.</span>
             </p>
             <p class="mobile-tip">
               Sur mobile, touche une date pour la consulter puis fais un double tap ou laisse le doigt appuyé pour
               l'ouvrir en modification.
             </p>
           </div>
+
+          <section class="details-actions-panel">
+            <div id="details-actions" class="details-actions">
+              <button id="details-edit-button" type="button">Ajouter / modifier</button>
+              <button id="details-remove-button" type="button">Supprimer</button>
+              <button id="details-select-removed-button" type="button">Choisir comme jour à échanger</button>
+              <button id="details-hsp-button" type="button">HSP</button>
+              <button id="details-toggle-blocked-button" type="button">Bloquer en repos</button>
+              <button id="clear-removed-button" type="button">Annuler échange / HSP</button>
+              <button id="request-exchange-button" type="button" disabled>Demander</button>
+            </div>
+          </section>
 
           <div id="calendar-container" class="calendar-container"></div>
         </section>
@@ -78,13 +87,6 @@
 
           <section class="panel-card">
             <h2 id="day-details-title">Détails du jour</h2>
-            <div id="details-actions" class="details-actions">
-              <button id="details-edit-button" type="button">Ajouter / modifier</button>
-              <button id="details-remove-button" type="button">Supprimer</button>
-              <button id="details-select-removed-button" type="button">Choisir comme jour à échanger</button>
-              <button id="details-hsp-button" type="button">HSP</button>
-              <button id="details-toggle-blocked-button" type="button">Bloquer en repos</button>
-            </div>
             <pre id="day-details-output">Clique sur un jour pour afficher ses détails.</pre>
           </section>
         </aside>
@@ -215,7 +217,7 @@
         <h2>Mode d'emploi</h2>
         <div class="help-modal-content">
           <p>Importe directement ton planning via un fichier Excel depuis <strong>"Paramètres"</strong> &gt; <strong>"Importer planning Excel"</strong>. L'appli accepte les fichiers <strong>.xlsx</strong>, <strong>.xls</strong>, <strong>.xlsm</strong>, <strong>.xlsb</strong>, <strong>.ods</strong> et <strong>.fods</strong>.</p>
-          <p>Tu peux aussi le rentrer manuellement jour après jour, en double-cliquant sur une case, ou sur mobile avec un double tap ou un appui long. Choisis l'horaire puis <strong>"enregistrer"</strong>.</p>
+          <p>Tu peux aussi le rentrer manuellement jour après jour, en double-cliquant sur une case, ou sur mobile avec un double tap ou un appui long. Tu peux aussi utiliser les actions affichées au-dessus du calendrier après avoir sélectionné un jour. Choisis l'horaire puis <strong>"enregistrer"</strong>.</p>
           <p>Tu peux cocher la case <strong>"Bloquer ce jour comme repos indisponible"</strong> si tu ne veux pas que ce jour soit pris en compte dans les échanges.</p>
           <p>Les jours <strong>CA</strong> et <strong>FO</strong> ne sont pas échangeables. <strong>FO</strong> vaut <strong>9h-17h</strong>, <strong>CA</strong> vaut <strong>7h-19h</strong>.</p>
           <p>Les jours et nuit travaillés ainsi que les <strong>FO</strong> apparaissent en bleu hachurés. Les repos bloqués et <strong>CA</strong> en rouge (rose).</p>
@@ -225,10 +227,10 @@
           <p>Tu peux créer une sauvegarde via <strong>"Paramètres / Exporter JSON"</strong>. Cela crée un fichier de sauvegarde que tu peux enregistrer pour l'importer ensuite dans un autre navigateur ou ton téléphone.</p>
           <p>Tout en haut, tu peux choisir le mode de recherche en fonction de ce que tu préfères échanger : <strong>Jour et nuit</strong>, <strong>que jour</strong>, <strong>que nuit</strong>.</p>
           <p>Ensuite double-clic sur le jour que tu veux échanger, ou sur mobile fais un double tap ou un appui long, puis coche <strong>"choisir comme jour à échanger"</strong>.</p>
-          <p><span class="desktop-only">Si tu veux chercher des jours pour faire des heures supplémentaires sans retirer de poste, clique sur une date puis sur <strong>"HSP"</strong> dans <strong>"Détails du jour"</strong>.</span><span class="mobile-only">Si tu veux chercher des jours pour faire des heures supplémentaires sans retirer de poste, touche une date puis utilise le bouton <strong>"HSP"</strong> tout en haut de l'écran, entre <strong>"Annuler le jour à enlever"</strong> et <strong>"Demander"</strong>.</span> L'appli te montre alors les jours où tu peux ajouter un poste en respectant les 12h de repos et la règle des 4 jours sur 7.</p>
+          <p>Si tu veux chercher des jours pour faire des heures supplémentaires sans retirer de poste, sélectionne une date puis clique sur <strong>"HSP"</strong> dans les actions affichées au-dessus du calendrier. L'appli te montre alors les jours où tu peux ajouter un poste en respectant les 12h de repos et la règle des 4 jours sur 7.</p>
           <p>L'appli te propose :</p>
           <p><strong>En vert :</strong> échange possible sur TOUS les horaires.<br /><strong>En jaune :</strong> échange possible sur des horaires de jour (Vérifie les 10-22 / 11-23).<br /><strong>En bleu :</strong> échange possible seulement en nuit.<br /><strong>En rouge :</strong> les jours impossibles à échanger.</p>
-          <p>Tu peux cliquer sur un jour pour avoir plus d'informations dans la partie <strong>"Détails du jour"</strong> en bas à droite.</p>
+          <p>Tu peux cliquer sur un jour pour avoir plus d'informations dans la partie <strong>"Détails du jour"</strong> et utiliser les boutons d'action juste au-dessus du calendrier.</p>
           <p>Enfin tu peux cliquer sur <strong>"Demander"</strong> en haut pour avoir un texte tout prêt à copier/coller avec les jours possibles à échanger. Tu peux choisir la période, inclure les 10-22 / 11-23 et modifier le texte avant de le copier.</p>
         </div>
         <div class="modal-actions">
