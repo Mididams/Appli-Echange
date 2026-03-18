@@ -49,8 +49,8 @@
             </div>
             <p>
               1. Importe ton planning depuis <strong>"Paramètres"</strong>. <span class="desktop-only">2. Double-clique sur un jour pour
-              l'éditer rapidement ou utilise les actions au-dessus du calendrier.</span><span class="mobile-only">2. Double-clique ou laisse appuyé sur un jour pour l'éditer rapidement.</span><br />3. Choisis le jour à échanger, <span class="desktop-only">ou active <strong>HSP</strong> avec les actions au-dessus du calendrier pour voir les jours où ajouter un poste.</span><span class="mobile-only">ou clique sur <strong>HSP</strong> dans les actions au-dessus du calendrier pour voir les jours disponibles.</span>
-              4. Les disponibilités apparaissent automatiquement. <span class="desktop-only">5. Clique sur un jour pour consulter les
+              l'éditer rapidement ou utilise les actions au-dessus du calendrier.</span><span class="mobile-only">2. Double-clique ou laisse appuyé sur un jour pour l'éditer rapidement.</span><br />3. Choisis le jour à échanger, <span class="desktop-only">ou active <strong>HSP</strong> avec les actions au-dessus du calendrier pour voir les jours où ajouter un poste.</span><span class="mobile-only">ou clique sur <strong>HSP</strong> pour voir les jours disponibles.</span>
+              4. Utilise aussi <strong>"Vérifier un échange"</strong> si tu veux tester une date proposée par quelqu'un d'autre. 5. Les disponibilités apparaissent automatiquement. <span class="desktop-only">6. Clique sur un jour pour consulter les
               détails dans le panneau de droite puis utilise les actions au-dessus du calendrier si besoin.</span><span class="mobile-only">5. Clique sur un jour pour consulter les détails dans le panneau des détails du jour sous le calendrier, puis utilise les actions au-dessus du calendrier si besoin.</span>
             </p>
             <p class="mobile-tip">
@@ -64,9 +64,9 @@
               <button id="details-edit-button" type="button">Ajouter / modifier</button>
               <button id="details-remove-button" type="button">Supprimer</button>
               <button id="details-select-removed-button" type="button">Choisir comme jour à échanger</button>
+              <button id="details-verify-button" type="button">Vérifier un échange</button>
               <button id="details-hsp-button" type="button">HSP</button>
               <button id="details-toggle-blocked-button" type="button">Bloquer en repos</button>
-              <button id="clear-removed-button" type="button">Annuler échange / HSP</button>
               <button id="request-exchange-button" type="button" disabled>Demander</button>
             </div>
           </section>
@@ -81,13 +81,13 @@
           </section>
 
           <section class="panel-card">
-            <h2>Légende</h2>
-            <div id="legend-content"></div>
+            <h2 id="day-details-title">Détails du jour</h2>
+            <pre id="day-details-output">Clique sur un jour pour afficher ses détails.</pre>
           </section>
 
           <section class="panel-card">
-            <h2 id="day-details-title">Détails du jour</h2>
-            <pre id="day-details-output">Clique sur un jour pour afficher ses détails.</pre>
+            <h2>Légende</h2>
+            <div id="legend-content"></div>
           </section>
         </aside>
       </main>
@@ -122,6 +122,7 @@
           <button id="save-shift-button" type="button">Enregistrer</button>
           <button id="delete-shift-button" type="button">Supprimer le poste</button>
           <button id="select-removed-button" type="button">Choisir comme jour à échanger</button>
+          <button id="picker-verify-button" type="button">Vérifier un échange</button>
           <button id="close-picker-button" type="button">Fermer</button>
         </div>
       </div>
@@ -212,6 +213,56 @@
       </div>
     </div>
 
+    <div id="verify-modal-backdrop" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <h2>Vérifier un échange</h2>
+        <p class="modal-help">Choisis la date proposée par quelqu'un d'autre pour voir contre quels jours de ton planning elle pourrait être échangée.</p>
+
+        <div class="modal-section">
+          <label for="verify-date-input">Date à vérifier</label>
+          <input id="verify-date-input" type="date" />
+        </div>
+
+        <div class="modal-section">
+          <span class="toolbar-label">Horaires demandés</span>
+          <div class="request-options">
+            <label class="checkbox-label">
+              <input id="verify-7-19-checkbox" type="radio" name="verify-shift-type" />
+              7h-19h
+            </label>
+            <label class="checkbox-label">
+              <input id="verify-night-checkbox" type="radio" name="verify-shift-type" />
+              19h-7h
+            </label>
+            <label class="checkbox-label">
+              <input id="verify-10-22-checkbox" type="radio" name="verify-shift-type" />
+              10h-22h
+            </label>
+            <label class="checkbox-label">
+              <input id="verify-11-23-checkbox" type="radio" name="verify-shift-type" />
+              11h-23h
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button id="confirm-verify-button" type="button">Vérifier</button>
+          <button id="clear-verify-button" type="button">Annuler la vérification</button>
+          <button id="close-verify-button" type="button">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="verify-info-modal-backdrop" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <h2 class="modal-title-centered">Information</h2>
+        <p id="verify-info-modal-text"></p>
+        <div class="modal-actions modal-actions-centered">
+          <button id="close-verify-info-button" type="button">Compris</button>
+        </div>
+      </div>
+    </div>
+
     <div id="help-modal-backdrop" class="modal-backdrop hidden">
       <div class="modal-card modal-card-help">
         <h2>Mode d'emploi</h2>
@@ -227,6 +278,8 @@
           <p>Tu peux créer une sauvegarde via <strong>"Paramètres / Exporter JSON"</strong>. Cela crée un fichier de sauvegarde que tu peux enregistrer pour l'importer ensuite dans un autre navigateur ou ton téléphone.</p>
           <p>Tout en haut, tu peux choisir le mode de recherche en fonction de ce que tu préfères échanger : <strong>Jour et nuit</strong>, <strong>que jour</strong>, <strong>que nuit</strong>.</p>
           <p>Ensuite double-clic sur le jour que tu veux échanger, ou sur mobile fais un double tap ou un appui long, puis coche <strong>"choisir comme jour à échanger"</strong>.</p>
+          <p>Si quelqu'un te propose une date précise, clique sur <strong>"Vérifier un échange"</strong>, entre la date et l'horaire demandés, puis l'appli affichera seulement les jours de ton planning qui peuvent être échangés contre cette demande.</p>
+          <p>Le mode <strong>"Vérifier un échange"</strong> peut aussi proposer un échange entre un <strong>jour</strong> et une <strong>nuit</strong> si les contraintes restent respectées, notamment les <strong>12h de repos</strong> et la règle des <strong>4 jours travaillés sur 7</strong>.</p>
           <p>Si tu veux chercher des jours pour faire des heures supplémentaires sans retirer de poste, sélectionne une date puis clique sur <strong>"HSP"</strong> dans les actions affichées au-dessus du calendrier. L'appli te montre alors les jours où tu peux ajouter un poste en respectant les 12h de repos et la règle des 4 jours sur 7.</p>
           <p>L'appli te propose :</p>
           <p><strong>En vert :</strong> échange possible sur TOUS les horaires.<br /><strong>En jaune :</strong> échange possible sur des horaires de jour (Vérifie les 10-22 / 11-23).<br /><strong>En bleu :</strong> échange possible seulement en nuit.<br /><strong>En rouge :</strong> les jours impossibles à échanger.</p>

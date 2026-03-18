@@ -265,6 +265,11 @@ select:hover {
   outline: 3px solid var(--color-selected);
 }
 
+.day-cell.verify-requested {
+  outline: 3px solid #c1121f;
+  outline-offset: -1px;
+}
+
 .day-cell.today {
   border: 2px solid #111111;
   box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.18);
@@ -527,6 +532,10 @@ pre {
   margin-top: 0;
 }
 
+.modal-title-centered {
+  text-align: center;
+}
+
 .modal-help {
   color: var(--color-muted);
   line-height: 1.4;
@@ -616,6 +625,10 @@ pre {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.modal-actions-centered {
+  justify-content: center;
 }
 
 .help-modal-content {
