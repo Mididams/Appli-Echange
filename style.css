@@ -6,6 +6,12 @@
   --color-muted: #6f766e;
   --color-worked: #dde9f3;
   --color-worked-border: #2e86ab;
+  --color-worked-day: #dde9f3;
+  --color-worked-day-stripe: rgba(46, 134, 171, 0.16);
+  --color-worked-day-border: #2e86ab;
+  --color-worked-night: #c7d8f6;
+  --color-worked-night-stripe: rgba(37, 77, 168, 0.24);
+  --color-worked-night-border: #254da8;
   --color-removed: #f6d365;
   --color-day-only: #f0f848;
   --color-night-only: #3071ee;
@@ -265,13 +271,25 @@ select:hover {
   background:
     repeating-linear-gradient(
       -45deg,
-      rgba(46, 134, 171, 0.16) 0,
-      rgba(46, 134, 171, 0.16) 8px,
+      var(--worked-stripe-color, rgba(46, 134, 171, 0.16)) 0,
+      var(--worked-stripe-color, rgba(46, 134, 171, 0.16)) 8px,
       rgba(255, 255, 255, 0) 8px,
       rgba(255, 255, 255, 0) 16px
     ),
-    var(--color-worked);
-  border-color: var(--color-worked-border);
+    var(--worked-bg-color, var(--color-worked));
+  border-color: var(--worked-border-color, var(--color-worked-border));
+}
+
+.day-cell.state-worked.worked-day {
+  --worked-bg-color: var(--color-worked-day);
+  --worked-stripe-color: var(--color-worked-day-stripe);
+  --worked-border-color: var(--color-worked-day-border);
+}
+
+.day-cell.state-worked.worked-night {
+  --worked-bg-color: var(--color-worked-night);
+  --worked-stripe-color: var(--color-worked-night-stripe);
+  --worked-border-color: var(--color-worked-night-border);
 }
 
 .day-cell.state-removed {
@@ -426,12 +444,22 @@ select:hover {
   background:
     repeating-linear-gradient(
       -45deg,
-      rgba(46, 134, 171, 0.16) 0,
-      rgba(46, 134, 171, 0.16) 8px,
+      var(--legend-stripe-color, rgba(46, 134, 171, 0.16)) 0,
+      var(--legend-stripe-color, rgba(46, 134, 171, 0.16)) 8px,
       rgba(255, 255, 255, 0) 8px,
       rgba(255, 255, 255, 0) 16px
     ),
-    var(--color-worked) !important;
+    var(--legend-bg-color, var(--color-worked)) !important;
+}
+
+.legend-swatch-worked-day {
+  --legend-bg-color: var(--color-worked-day);
+  --legend-stripe-color: var(--color-worked-day-stripe);
+}
+
+.legend-swatch-worked-night {
+  --legend-bg-color: var(--color-worked-night);
+  --legend-stripe-color: var(--color-worked-night-stripe);
 }
 
 pre {

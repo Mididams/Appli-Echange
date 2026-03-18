@@ -833,6 +833,14 @@
     return badges;
   }
 
+  function getWorkedDayCellTone(shift) {
+    if (!shift) {
+      return "";
+    }
+
+    return shift.shiftType === "NUIT_19_7" ? "worked-night" : "worked-day";
+  }
+
   function formatDayCellBadgeLabel(label) {
     if (label.includes(":")) {
       return label.replace(":", "\n");
@@ -939,8 +947,12 @@
     getMonthDateStrings(year, month).forEach((dateString) => {
       const button = document.createElement("button");
       const cellState = getDayCellState(dateString);
+      const shift = getShiftByDate(dateString);
       button.type = "button";
       button.className = `day-cell state-${cellState}`;
+      if (cellState === "worked") {
+        button.classList.add(getWorkedDayCellTone(shift));
+      }
       button.dataset.date = dateString;
       if (dateString === getTodayDateString()) {
         button.classList.add("today");
@@ -1193,7 +1205,8 @@
   function renderLegend() {
     legendContent.innerHTML = "";
     const items = [
-      ["var(--color-worked)", "Jour travaillé"],
+      ["worked-day", "Jour travaillé"],
+      ["worked-night", "Nuit travaillée"],
       ["var(--color-removed)", "Jour à enlever"],
       ["var(--color-day-only)", "Possible en jour"],
       ["var(--color-night-only)", "Possible en nuit"],
@@ -1208,8 +1221,16 @@
     items.forEach(([color, label]) => {
       const row = document.createElement("div");
       row.className = "legend-line";
-      const swatchClass = label === "Jour travaillé" ? "legend-swatch legend-swatch-worked" : "legend-swatch";
-      row.innerHTML = `<span class="${swatchClass}" style="background:${color}"></span><span>${label}</span>`;
+      let swatchClass = "legend-swatch";
+      let swatchStyle = `background:${color}`;
+      if (color === "worked-day") {
+        swatchClass = "legend-swatch legend-swatch-worked legend-swatch-worked-day";
+        swatchStyle = "";
+      } else if (color === "worked-night") {
+        swatchClass = "legend-swatch legend-swatch-worked legend-swatch-worked-night";
+        swatchStyle = "";
+      }
+      row.innerHTML = `<span class="${swatchClass}"${swatchStyle ? ` style="${swatchStyle}"` : ""}></span><span>${label}</span>`;
       list.appendChild(row);
     });
     legendContent.appendChild(list);
