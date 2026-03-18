@@ -627,6 +627,14 @@
     renderAll();
   }
 
+  function removeDayNote(date) {
+    if (!getDayNote(date)) {
+      return;
+    }
+
+    setDayNote(date, "");
+  }
+
   function toggleBlockedRest(dateString, shouldBlock) {
     state.blockedRestDates = shouldBlock
       ? [...new Set([...state.blockedRestDates, dateString])].sort()
@@ -1177,12 +1185,14 @@
   function renderDetailsActions() {
     const date = state.selectedDate;
     const shift = date ? getShiftByDate(date) : null;
+    const hasFreeNote = Boolean(date && getDayNote(date));
     const isBlocked = date ? state.blockedRestDates.includes(date) : false;
     const isAnnualLeave = isAnnualLeaveShift(shift);
     const isHspView = isHspViewActive();
 
     detailsEditButton.disabled = !date;
-    detailsRemoveButton.disabled = !shift;
+    detailsRemoveButton.disabled = !shift && !hasFreeNote;
+    detailsRemoveButton.textContent = !shift && hasFreeNote ? "Supprimer le texte" : "Supprimer";
     detailsSelectRemovedButton.disabled = isHspView || !isExchangeableWorkedShift(shift);
     detailsSelectRemovedButton.textContent = isHspView
       ? "Jour à échanger indisponible en HSP"
@@ -2177,7 +2187,12 @@
     if (!state.selectedDate) {
       return;
     }
-    removeWorkedShift(state.selectedDate);
+    if (getShiftByDate(state.selectedDate)) {
+      removeWorkedShift(state.selectedDate);
+      return;
+    }
+
+    removeDayNote(state.selectedDate);
   });
 
   detailsSelectRemovedButton.addEventListener("click", () => {
