@@ -102,6 +102,7 @@
   const nextMonthButton = document.getElementById("next-month-button");
   const requestExchangeButton = document.getElementById("request-exchange-button");
   const clearRemovedButton = document.getElementById("clear-removed-button");
+  const mobileHspButton = document.getElementById("mobile-hsp-button");
   const settingsButton = document.getElementById("settings-button");
   const settingsPanelBackdrop = document.getElementById("settings-panel-backdrop");
   const settingsPanel = document.getElementById("settings-panel");
@@ -706,6 +707,8 @@
     }
     detailsHspButton.textContent = isHspViewActive() ? "Quitter HSP" : "HSP";
     detailsHspButton.classList.toggle("is-active", isHspViewActive());
+    mobileHspButton.textContent = isHspViewActive() ? "Quitter HSP" : "HSP";
+    mobileHspButton.classList.toggle("is-active", isHspViewActive());
     saveToLocalStorage();
     renderAll();
   }
@@ -1175,6 +1178,9 @@
     detailsHspButton.disabled = !date;
     detailsHspButton.textContent = isHspViewActive() ? "Quitter HSP" : "HSP";
     detailsHspButton.classList.toggle("is-active", isHspViewActive());
+    mobileHspButton.disabled = !date;
+    mobileHspButton.textContent = isHspViewActive() ? "Quitter HSP" : "HSP";
+    mobileHspButton.classList.toggle("is-active", isHspViewActive());
     detailsToggleBlockedButton.disabled = !date || isAnnualLeave;
     detailsToggleBlockedButton.textContent = isBlocked ? "Débloquer le repos" : "Bloquer en repos";
   }
@@ -1936,6 +1942,12 @@
   helpButton.addEventListener("click", openHelpModal);
   requestExchangeButton.addEventListener("click", openRequestModal);
   clearRemovedButton.addEventListener("click", clearRemovedShift);
+  mobileHspButton.addEventListener("click", () => {
+    if (!state.selectedDate) {
+      return;
+    }
+    toggleHspView();
+  });
 
   settingsButton.addEventListener("click", (event) => {
     event.stopPropagation();

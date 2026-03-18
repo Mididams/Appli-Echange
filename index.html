@@ -23,6 +23,7 @@
 
         <div class="toolbar-group">
           <button id="clear-removed-button" type="button">Annuler le jour à enlever</button>
+          <button id="mobile-hsp-button" class="mobile-toolbar-button" type="button" disabled>HSP</button>
           <button id="request-exchange-button" type="button" disabled>Demander</button>
           <button id="reset-button" type="button">Réinitialiser</button>
           <div class="settings-menu">
@@ -51,7 +52,7 @@
             </div>
             <p>
               1. Importe ton planning depuis <strong>"Paramètres"</strong>. <span class="desktop-only">2. Double-clique sur un jour pour
-              l'éditer rapidement ou utilise les actions du panneau de droite.</span><span class="mobile-only">2. Double-clique ou laisse appuyé sur un jour pour l'éditer rapidement.</span><br />3. Choisis le jour à échanger, ou active <strong>HSP</strong> dans les détails du jour pour voir les jours où ajouter un poste.
+              l'éditer rapidement ou utilise les actions du panneau de droite.</span><span class="mobile-only">2. Double-clique ou laisse appuyé sur un jour pour l'éditer rapidement.</span><br />3. Choisis le jour à échanger, <span class="desktop-only">ou active <strong>HSP</strong> dans les détails du jour pour voir les jours où ajouter un poste.</span><span class="mobile-only">ou touche une date puis le bouton <strong>HSP</strong> en haut de l'écran, entre <strong>"Annuler le jour à enlever"</strong> et <strong>"Demander"</strong>, pour voir les jours où ajouter un poste.</span>
               4. Les disponibilités apparaissent automatiquement. <span class="desktop-only">5. Clique sur un jour pour consulter les
               détails dans le panneau de droite.</span><span class="mobile-only">5. Clique sur un jour pour consulter les détails dans le panneau des détails du jour sous le calendrier.</span>
             </p>
@@ -224,7 +225,7 @@
           <p>Tu peux créer une sauvegarde via <strong>"Paramètres / Exporter JSON"</strong>. Cela crée un fichier de sauvegarde que tu peux enregistrer pour l'importer ensuite dans un autre navigateur ou ton téléphone.</p>
           <p>Tout en haut, tu peux choisir le mode de recherche en fonction de ce que tu préfères échanger : <strong>Jour et nuit</strong>, <strong>que jour</strong>, <strong>que nuit</strong>.</p>
           <p>Ensuite double-clic sur le jour que tu veux échanger, ou sur mobile fais un double tap ou un appui long, puis coche <strong>"choisir comme jour à échanger"</strong>.</p>
-          <p>Si tu veux chercher des jours pour faire des heures supplémentaires sans retirer de poste, clique sur une date puis sur <strong>"HSP"</strong> dans <strong>"Détails du jour"</strong>. L'appli te montre alors les jours où tu peux ajouter un poste en respectant les 12h de repos et la règle des 4 jours sur 7.</p>
+          <p><span class="desktop-only">Si tu veux chercher des jours pour faire des heures supplémentaires sans retirer de poste, clique sur une date puis sur <strong>"HSP"</strong> dans <strong>"Détails du jour"</strong>.</span><span class="mobile-only">Si tu veux chercher des jours pour faire des heures supplémentaires sans retirer de poste, touche une date puis utilise le bouton <strong>"HSP"</strong> tout en haut de l'écran, entre <strong>"Annuler le jour à enlever"</strong> et <strong>"Demander"</strong>.</span> L'appli te montre alors les jours où tu peux ajouter un poste en respectant les 12h de repos et la règle des 4 jours sur 7.</p>
           <p>L'appli te propose :</p>
           <p><strong>En vert :</strong> échange possible sur TOUS les horaires.<br /><strong>En jaune :</strong> échange possible sur des horaires de jour (Vérifie les 10-22 / 11-23).<br /><strong>En bleu :</strong> échange possible seulement en nuit.<br /><strong>En rouge :</strong> les jours impossibles à échanger.</p>
           <p>Tu peux cliquer sur un jour pour avoir plus d'informations dans la partie <strong>"Détails du jour"</strong> en bas à droite.</p>

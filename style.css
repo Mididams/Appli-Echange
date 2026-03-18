@@ -182,6 +182,10 @@ select:hover {
   font-size: 14px;
 }
 
+.mobile-toolbar-button {
+  display: none;
+}
+
 .calendar-container {
   display: grid;
   gap: 16px;
@@ -651,6 +655,12 @@ pre {
   .settings-menu {
     flex: 1 1 calc(50% - 5px);
     width: calc(50% - 5px);
+  }
+
+  .mobile-toolbar-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .settings-menu > button {
