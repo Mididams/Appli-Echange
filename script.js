@@ -1095,6 +1095,11 @@
     freeNoteModalBackdrop.classList.add("hidden");
   }
 
+  function closeFreeNoteAndShiftPickers() {
+    closeFreeNoteModal();
+    closeShiftTypePicker();
+  }
+
   function handleDayClick(date) {
     if (longPressTriggeredDate === date) {
       longPressTriggeredDate = null;
@@ -2194,7 +2199,7 @@
     }
 
     setDayNote(state.pickerDate, freeNoteInput.value);
-    closeFreeNoteModal();
+    closeFreeNoteAndShiftPickers();
   });
 
   removeFreeNoteButton.addEventListener("click", () => {
