@@ -22,9 +22,9 @@
         </div>
 
         <div class="toolbar-group">
-          <button id="reset-button" type="button">Réinitialiser</button>
+          <button id="reset-button" type="button" title="Effacer TOUTES les données du planning">Réinitialiser</button>
           <div class="settings-menu">
-            <button id="settings-button" type="button" aria-expanded="false" aria-controls="settings-panel">Paramètres</button>
+            <button id="settings-button" type="button" aria-expanded="false" aria-controls="settings-panel" title="Importer un panning, sauvegarder les données">Paramètres</button>
             <div id="settings-panel-backdrop" class="settings-panel-backdrop hidden">
               <div id="settings-panel" class="settings-panel">
                 <h2 class="settings-panel-title">Paramètres</h2>
@@ -49,9 +49,10 @@
             </div>
             <p>
               1. Importe ton planning depuis <strong>"Paramètres"</strong>. <span class="desktop-only">2. Double-clique sur un jour pour
-              l'éditer rapidement ou utilise les actions au-dessus du calendrier.</span><span class="mobile-only">2. Double-clique ou laisse appuyé sur un jour pour l'éditer rapidement.</span><br />3. Choisis le jour à échanger, <span class="desktop-only">ou active <strong>HSP</strong> avec les actions au-dessus du calendrier pour voir les jours où ajouter un poste.</span><span class="mobile-only">ou clique sur <strong>HSP</strong> pour voir les jours disponibles.</span>
+              l'éditer rapidement ou utilise les actions au-dessus du calendrier.</span><span class="mobile-only">2. Double-clique ou laisse appuyé sur un jour pour l'éditer rapidement.</span><br />3. Choisis le jour à échanger, <span class="desktop-only">ou active <strong>HSP</strong> pour voir les jours où ajouter un poste.</span><span class="mobile-only">ou clique sur <strong>HSP</strong> pour voir les jours disponibles.</span>
               4. Utilise aussi <strong>"Vérifier un échange"</strong> si tu veux tester une date proposée par quelqu'un d'autre. 5. Les disponibilités apparaissent automatiquement. <span class="desktop-only">6. Clique sur un jour pour consulter les
-              détails dans le panneau de droite puis utilise les actions au-dessus du calendrier si besoin.</span><span class="mobile-only">5. Clique sur un jour pour consulter les détails dans le panneau des détails du jour sous le calendrier, puis utilise les actions au-dessus du calendrier si besoin.</span>
+              détails dans le panneau de droite.</span><span class="mobile-only">5. Clique sur un jour pour consulter les détails dans le panneau des détails du jour sous le calendrier, puis utilise les actions au-dessus du calendrier si besoin.</span>
+              <span class="desktop-only"> 7. Laisse la souris sur un bouton pour avoir de l'aide.</span>
             </p>
             <p class="mobile-tip">
               Sur mobile, touche une date pour la consulter puis fais un double tap ou laisse le doigt appuyé pour
@@ -61,13 +62,13 @@
 
           <section class="details-actions-panel">
             <div id="details-actions" class="details-actions">
-              <button id="details-edit-button" type="button">Ajouter / modifier</button>
-              <button id="details-remove-button" type="button">Supprimer</button>
-              <button id="details-select-removed-button" type="button">Choisir comme jour à échanger</button>
-              <button id="details-verify-button" type="button">Vérifier un échange</button>
-              <button id="details-hsp-button" type="button">HSP</button>
-              <button id="details-toggle-blocked-button" type="button">Bloquer en repos</button>
-              <button id="request-exchange-button" type="button" disabled>Demander</button>
+              <button id="details-edit-button" type="button" title="Selectionne un jour puis modifie les horaires, ajoute un repos, supprime un poste, etc...">Ajouter / modifier</button>
+              <button id="details-remove-button" type="button" title="Choisis un jour travaillé pour le supprimer du planning">Supprimer</button>
+              <button id="details-select-removed-button" type="button" title="Selectionne le jour que tu veux échanger pour voir les différentes possibilités">Choisir comme jour à échanger</button>
+              <button id="details-verify-button" type="button" title="Entre une date proposée par quelqu'un pour voir avec quels jours de ton planning tu pourrais l'échanger">Vérifier un échange</button>
+              <button id="details-hsp-button" type="button" title="Clique pour voir quels jours tu pourrais faire en heures supp en respectant 4 jours sur 7">HSP</button>
+              <button id="details-toggle-blocked-button" type="button" title="Choisis un jour puis bloque le en repos pour ne pas l'échanger">Bloquer en repos</button>
+              <button id="request-exchange-button" type="button" title="Ouvre une pop-up pour copier le texte de ta demande ou répondre à un échange" disabled>Demander</button>
             </div>
           </section>
 
@@ -225,7 +226,7 @@
 
         <div class="modal-section">
           <span class="toolbar-label">Horaires demandés</span>
-          <div class="request-options">
+          <div class="request-options verify-request-options">
             <label class="checkbox-label">
               <input id="verify-7-19-checkbox" type="radio" name="verify-shift-type" />
               7h-19h
