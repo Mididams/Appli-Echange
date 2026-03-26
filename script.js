@@ -252,6 +252,14 @@
     return formatDateString(new Date());
   }
 
+  function isPastDate(dateString) {
+    return dateString < getTodayDateString();
+  }
+
+  function shouldBlankPastDayInHspView(dateString) {
+    return isHspViewActive() && isPastDate(dateString);
+  }
+
   function addDays(dateString, days) {
     return engine.addDays(dateString, days);
   }
@@ -999,6 +1007,9 @@
     if (isVerifyRequestedDate) {
       return "worked";
     }
+    if (shouldBlankPastDayInHspView(date)) {
+      return "hsp-past";
+    }
     if (isVerifyViewActive()) {
       return isVerifyPossibleWorkedDay(date) ? "worked" : "empty";
     }
@@ -1027,6 +1038,10 @@
   }
 
   function getDayCellBadges(date) {
+    if (shouldBlankPastDayInHspView(date)) {
+      return [];
+    }
+
     if (isVerifyViewActive() && !isVerifyPossibleWorkedDay(date) && !isVerifyRequestedDate(date)) {
       return [];
     }
@@ -1111,13 +1126,20 @@
   }
 
   function formatDayCellBadgeLabel(label) {
-    if (label.includes(":")) {
-      return label.replace(":", "\n");
+    if (label === "Repos bloqué") {
+      return "Repos\nbloqué";
     }
 
-    if (label.includes(" ")) {
-      const parts = label.split(" ");
-      return `${parts.slice(0, -1).join(" ")}\n${parts[parts.length - 1]}`;
+    if (label === "A retirer") {
+      return "A\nretirer";
+    }
+
+    if (label === "A rajouter") {
+      return "A\nrajouter";
+    }
+
+    if (label.includes(":")) {
+      return label.replace(":", "\n");
     }
 
     return label;
@@ -1172,6 +1194,10 @@
   }
 
   function getMiniSummaryItems(date) {
+    if (shouldBlankPastDayInHspView(date)) {
+      return [];
+    }
+
     const statusEntry = state.visibleStatuses ? state.visibleStatuses[date] : null;
     if ((!state.removedShift && !isHspViewActive() && !isVerifyViewActive()) || !statusEntry) {
       return [];
@@ -1233,6 +1259,10 @@
       const shift = getShiftByDate(dateString);
       button.type = "button";
       button.className = `day-cell state-${cellState}`;
+      if (cellState === "hsp-past") {
+        button.classList.add("hsp-past");
+        button.disabled = true;
+      }
       if (cellState === "worked") {
         if (isVerifyRequestedDate(dateString) && !shift) {
           button.classList.add(getVerifyRequestedDayCellTone());
@@ -1247,7 +1277,7 @@
       if (isVerifyRequestedDate(dateString)) {
         button.classList.add("verify-requested");
       }
-      if (state.selectedDate === dateString) {
+      if (state.selectedDate === dateString && cellState !== "hsp-past") {
         button.classList.add("selected-detail");
       }
 
@@ -1444,6 +1474,9 @@
     }
 
     return getVisibleDateStrings().filter((date) => {
+      if (shouldBlankPastDayInHspView(date)) {
+        return false;
+      }
       if (getShiftByDate(date) || (state.removedShift && date === state.removedShift.date) || state.blockedRestDates.includes(date)) {
         return false;
       }
@@ -1487,6 +1520,7 @@
     const isAnnualLeave = isAnnualLeaveShift(shift);
     const isHspView = isHspViewActive();
     const isVerifyView = isVerifyViewActive();
+    const hasRemovedShift = Boolean(state.removedShift);
 
     detailsEditButton.disabled = !date;
     detailsRemoveButton.disabled = !shift && !hasFreeNote;
@@ -1497,6 +1531,7 @@
       : date
         ? getRemovedActionLabel(date)
         : "Choisir comme jour à échanger";
+    detailsSelectRemovedButton.classList.toggle("is-active", hasRemovedShift);
     detailsVerifyButton.disabled = false;
     detailsVerifyButton.textContent = isVerifyView ? "Modifier la date à vérifier" : "Vérifier un échange";
     detailsVerifyButton.classList.toggle("is-active", isVerifyView);

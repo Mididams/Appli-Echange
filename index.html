@@ -8,38 +8,6 @@
   </head>
   <body>
     <div class="app-shell">
-      <header class="toolbar">
-        <div class="toolbar-group">
-          <button id="prev-month-button" type="button">Mois précédent</button>
-          <button id="next-month-button" type="button">Mois suivant</button>
-        </div>
-
-        <div class="toolbar-group toolbar-group-radio">
-          <span class="toolbar-label">Mode de recherche</span>
-          <label><input type="radio" name="exchange-mode" value="ANY" checked /> Jour ou nuit</label>
-          <label><input type="radio" name="exchange-mode" value="DAY" /> Jour uniquement</label>
-          <label><input type="radio" name="exchange-mode" value="NIGHT" /> Nuit uniquement</label>
-        </div>
-
-        <div class="toolbar-group">
-          <button id="reset-button" type="button" title="Effacer TOUTES les données du planning">Réinitialiser</button>
-          <div class="settings-menu">
-            <button id="settings-button" type="button" aria-expanded="false" aria-controls="settings-panel" title="Importer un panning, sauvegarder les données">Paramètres</button>
-            <div id="settings-panel-backdrop" class="settings-panel-backdrop hidden">
-              <div id="settings-panel" class="settings-panel">
-                <h2 class="settings-panel-title">Paramètres</h2>
-                <button id="toggle-debug-button" type="button">Mode debug : OFF</button>
-                <button id="export-button" type="button">Exporter JSON</button>
-                <button id="import-button" type="button">Importer JSON</button>
-                <button id="excel-import-button" type="button">Importer planning Excel</button>
-              </div>
-            </div>
-          </div>
-          <input id="import-file-input" type="file" accept="application/json" hidden />
-          <input id="excel-import-file-input" type="file" accept=".xlsx,.xls,.xlsm,.xlsb,.ods,.fods" hidden />
-        </div>
-      </header>
-
       <main class="main-layout">
         <section class="calendar-panel">
           <div class="help-box">
@@ -59,6 +27,38 @@
               l'ouvrir en modification.
             </p>
           </div>
+
+          <header class="toolbar">
+            <div class="toolbar-group">
+              <button id="prev-month-button" type="button">Mois précédent</button>
+              <button id="next-month-button" type="button">Mois suivant</button>
+            </div>
+
+            <div class="toolbar-group toolbar-group-radio">
+              <span class="toolbar-label">Mode de recherche</span>
+              <label><input type="radio" name="exchange-mode" value="ANY" checked /> Jour ou nuit</label>
+              <label><input type="radio" name="exchange-mode" value="DAY" /> Jour uniquement</label>
+              <label><input type="radio" name="exchange-mode" value="NIGHT" /> Nuit uniquement</label>
+            </div>
+
+            <div class="toolbar-group">
+              <button id="reset-button" type="button" title="Effacer TOUTES les données du planning">Réinitialiser</button>
+              <div class="settings-menu">
+                <button id="settings-button" type="button" aria-expanded="false" aria-controls="settings-panel" title="Importer un panning, sauvegarder les données">Paramètres</button>
+                <div id="settings-panel-backdrop" class="settings-panel-backdrop hidden">
+                  <div id="settings-panel" class="settings-panel">
+                    <h2 class="settings-panel-title">Paramètres</h2>
+                    <button id="toggle-debug-button" type="button">Mode debug : OFF</button>
+                    <button id="export-button" type="button">Exporter JSON</button>
+                    <button id="import-button" type="button">Importer JSON</button>
+                    <button id="excel-import-button" type="button">Importer planning Excel</button>
+                  </div>
+                </div>
+              </div>
+              <input id="import-file-input" type="file" accept="application/json" hidden />
+              <input id="excel-import-file-input" type="file" accept=".xlsx,.xls,.xlsm,.xlsb,.ods,.fods" hidden />
+            </div>
+          </header>
 
           <section class="details-actions-panel">
             <div id="details-actions" class="details-actions">
