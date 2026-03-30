@@ -874,6 +874,10 @@
     selectRemovedButton.disabled = !canUsePickerRemovedAction(date, shift);
   }
 
+  function getVerifyActionLabel() {
+    return state.verifyExchangeDate ? "Annuler la date à vérifier" : "Vérifier un échange";
+  }
+
   function setExchangeMode(mode) {
     state.exchangeMode = mode;
     saveToLocalStorage();
@@ -1210,16 +1214,16 @@
     }
 
     const shiftTypes = isVerifyViewActive() ? getSelectedVerifyShiftTypes() : EXCHANGE_SHIFT_TYPES;
-    return shiftTypes.map((shiftType) => {
+    return shiftTypes
+      .filter((shiftType) => shouldDisplayShiftInDayDetails(shiftType))
+      .map((shiftType) => {
       const result = statusEntry.resultByShiftType[shiftType];
-      const label = isVerifyViewActive()
-        ? `Demande ${SHIFT_TYPE_BADGES[shiftType] || shiftType}`
-        : SHIFT_TYPE_BADGES[shiftType] || shiftType;
+      const label = SHIFT_TYPE_BADGES[shiftType] || shiftType;
       return {
         label,
         allowed: result ? result.allowed : false,
       };
-    });
+      });
   }
 
   function renderMonth(year, month) {
@@ -1533,7 +1537,7 @@
         : "Choisir comme jour à échanger";
     detailsSelectRemovedButton.classList.toggle("is-active", hasRemovedShift);
     detailsVerifyButton.disabled = false;
-    detailsVerifyButton.textContent = isVerifyView ? "Modifier la date à vérifier" : "Vérifier un échange";
+    detailsVerifyButton.textContent = getVerifyActionLabel();
     detailsVerifyButton.classList.toggle("is-active", isVerifyView);
     detailsHspButton.disabled = !date;
     detailsHspButton.textContent = isHspViewActive() ? "Quitter HSP" : "HSP";
@@ -2781,6 +2785,11 @@
   });
 
   detailsVerifyButton.addEventListener("click", () => {
+    if (state.verifyExchangeDate) {
+      clearVerifyExchangeDate();
+      return;
+    }
+
     openVerifyModal();
   });
 
