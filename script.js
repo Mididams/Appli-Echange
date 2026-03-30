@@ -7,6 +7,7 @@
   const STORAGE_KEY = "hospital-shift-exchange-v1";
   const XLSX_IMPORT_SUPPORTED_EXTENSIONS = [".xlsx", ".xls", ".xlsm", ".xlsb", ".ods", ".fods"];
   const SHIFT_TYPE_LABELS = {
+    EMPTY_DAY: "Jour vide",
     JOUR_7_19: "7h-19h",
     NUIT_19_7: "19h-7h",
     JOUR_10_22: "10h-22h",
@@ -2485,7 +2486,7 @@
 
   function populateShiftTypeSelect() {
     shiftTypeSelect.innerHTML = "";
-    Object.keys(SHIFT_TYPE_LABELS).forEach((shiftType) => {
+    [...Object.keys(SHIFT_TYPE_LABELS).filter((shiftType) => shiftType !== "EMPTY_DAY"), "EMPTY_DAY"].forEach((shiftType) => {
       const option = document.createElement("option");
       option.value = shiftType;
       option.textContent = SHIFT_TYPE_LABELS[shiftType];
@@ -2595,6 +2596,12 @@
 
     if (isPickerBlockedRestActive()) {
       toggleBlockedRest(state.pickerDate, true);
+      closeShiftTypePicker();
+      return;
+    }
+
+    if (shiftTypeSelect.value === "EMPTY_DAY") {
+      removeWorkedShift(state.pickerDate);
       closeShiftTypePicker();
       return;
     }
